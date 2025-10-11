@@ -1,0 +1,19 @@
+.DS_Store
+.idea
+*.log
+tmp/
+*.zip
+
+*__human.org
+.mcp.json
+.claude
+CLAUDE.md
+backup
+
+# Backup folder with private keys
+backup/
+temp
+
+# Font files (installed locally)
+*.ttf
+*.zip
