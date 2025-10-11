@@ -4,7 +4,7 @@
 
 > Transform Zotero into a meta-knowledge hub that AI agents can understand and reference.
 
-[![한글](https://img.shields.io/badge/한글-README--ko.md-blue)](README-ko.md)
+[![한글](https://img.shields.io/badge/한글-README--KO.md-blue)](README-KO.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Work in Progress](https://img.shields.io/badge/status-WIP-yellow.svg)](https://github.com/junghan0611/zotero-config)
 
