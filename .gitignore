@@ -1,19 +1,46 @@
+# OS Files
 .DS_Store
 .idea
+Thumbs.db
+
+# Logs
 *.log
+*.bak
+*.journal
+
+# Temporary files
 tmp/
+temp/
+
+# Archives
 *.zip
 
+# Personal notes (개인 메모는 공유 안 함)
 *__human.org
+INBOX*.org
+
+# MCP & Claude settings (로컬 AI 설정)
 .mcp.json
 .claude
 CLAUDE.md
-backup
 
 # Backup folder with private keys
 backup/
-temp
 
 # Font files (installed locally)
 *.ttf
-*.zip
+
+# Zotero workspace - 개인 데이터 제외
+workspace/data/          # Zotero 데이터베이스 (개인정보)
+workspace/files/         # 첨부파일 (저작권)
+workspace/incoming/      # 임시 파일
+
+# Config - 개인정보 포함된 원본 설정 제외
+config/original-prefs.js
+config/export-betterbibtex-preferences.json
+
+# Keep structure with .gitkeep
+!workspace/data/.gitkeep
+!workspace/files/.gitkeep
+!workspace/exports/.gitkeep
+!workspace/incoming/.gitkeep
