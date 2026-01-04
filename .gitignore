@@ -24,6 +24,10 @@ INBOX*.org
 .claude
 CLAUDE.md
 
+# Environment variables (API keys)
+.envrc
+.env
+
 # Backup folder with private keys
 backup/
 
@@ -44,3 +48,6 @@ config/export-betterbibtex-preferences.json
 !workspace/files/.gitkeep
 !workspace/exports/.gitkeep
 !workspace/incoming/.gitkeep
+
+NOW.org
+workspace/translation-server
