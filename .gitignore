@@ -51,3 +51,4 @@ config/export-betterbibtex-preferences.json
 
 NOW.org
 workspace/translation-server
+.translation-server.pid
