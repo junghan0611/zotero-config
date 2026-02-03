@@ -13,9 +13,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
-SERVER_DIR="$REPO_DIR/workspace/translation-server"
+SERVER_DIR="$HOME/repos/3rd/translation-server"
 PID_FILE="$REPO_DIR/.translation-server.pid"
-LOG_FILE="$REPO_DIR/workspace/translation-server.log"
+LOG_FILE="$SERVER_DIR/translation-server.log"
 
 # Colors
 RED='\033[0;31m'
@@ -55,7 +55,7 @@ do_start() {
 
     if [[ ! -d "$SERVER_DIR" ]]; then
         log_error "Translation Server not found at $SERVER_DIR"
-        log_info "Run: git clone https://github.com/zotero/translation-server.git $SERVER_DIR"
+        log_info "Run: mkdir -p ~/repos/3rd && git clone https://github.com/zotero/translation-server.git $SERVER_DIR"
         log_info "Then: cd $SERVER_DIR && git submodule update --init --recursive && npm install"
         exit 1
     fi
