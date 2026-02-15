@@ -63,7 +63,7 @@ Find it at https://www.zotero.org/settings/keys"
   "Default collection key to add items to.
 Set to nil to add to library root."
   :type '(choice (const :tag "Library root" nil)
-                 (string :tag "Collection key"))
+          (string :tag "Collection key"))
   :group 'zotero-save)
 
 (defcustom zotero-save-after-hook nil
@@ -243,15 +243,16 @@ Must be called in an Org buffer with point on a link."
     (message "Translation Server NOT available at %s" zotero-translation-server)))
 
 ;;; Doom Emacs integration
-(with-eval-after-load 'doom
-  (map! :leader
-        (:prefix-map ("n" . "notes")
-         (:prefix ("z" . "zotero")
-          :desc "Save URL to Zotero" "u" #'zotero-save-url
-          :desc "Save URL at point" "p" #'zotero-save-url-at-point
-          :desc "Save Org link" "l" #'zotero-save-org-link
-          :desc "Save clipboard URL" "c" #'zotero-save-clipboard
-          :desc "Check server" "s" #'zotero-check-server))))
+
+;; (with-eval-after-load 'doom
+;;   (map! :leader
+;;         (:prefix-map ("n" . "notes")
+;;                      (:prefix ("z" . "zotero")
+;;                       :desc "Save URL to Zotero" "u" #'zotero-save-url
+;;                       :desc "Save URL at point" "p" #'zotero-save-url-at-point
+;;                       :desc "Save Org link" "l" #'zotero-save-org-link
+;;                       :desc "Save clipboard URL" "c" #'zotero-save-clipboard
+;;                       :desc "Check server" "s" #'zotero-check-server))))
 
 (provide 'zotero-save)
 ;;; zotero-save.el ends here
