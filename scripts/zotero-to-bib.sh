@@ -151,6 +151,7 @@ do_full() {
     mkdir -p "$SYNC_DIR"
     fetch_items 0
     generate_bibtex
+    writeback_keys
 }
 
 do_sync() {
@@ -167,6 +168,7 @@ do_sync() {
 
     fetch_items "$since"
     generate_bibtex
+    writeback_keys
 }
 
 do_status() {
@@ -227,6 +229,17 @@ generate_bibtex() {
     log_success "BibTeX generation complete"
     log_info "Book.bib:    $BOOK_BIB"
     log_info "Slipbox.bib: $SLIPBOX_BIB"
+}
+
+writeback_keys() {
+    if [[ -f "$SYNC_DIR/new-keys.json" ]]; then
+        local count
+        count=$(jq 'length' "$SYNC_DIR/new-keys.json")
+        if [[ "$count" -gt 0 ]]; then
+            log_info "Writing back $count new citation keys to Zotero..."
+            "$SCRIPT_DIR/writeback-keys.sh"
+        fi
+    fi
 }
 
 show_usage() {
