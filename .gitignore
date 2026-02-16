@@ -56,5 +56,8 @@ workspace/translation-server
 # Sync state (API version, cached items, generated keys)
 .sync/
 
+# Generated BibTeX output (개인 서지 데이터)
+# output/
+
 # Python cache
 __pycache__/

@@ -4,6 +4,46 @@ This project uses **br** (beads_rust) for issue tracking. Run `br onboard` to ge
 
 **Note:** `br` is non-invasive and never executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
 
+## Project Overview
+
+Headless bibliographic workflow: Zotero Cloud API → citar-compatible BibTeX.
+No Zotero GUI, no Better BibTeX plugin.
+
+### Key Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `run.sh` | Main entry point (`server`, `bib`, `save` subcommands) |
+| `scripts/zotero-to-bib.sh` | Zotero API fetcher (pagination, incremental sync, merge) |
+| `scripts/gen-bibtex.py` | BibTeX engine (citation key generation, KDC lookup, type-based splitting) |
+| `scripts/writeback-keys.sh` | citationKey writeback to Zotero Cloud (PATCH) |
+| `scripts/run.sh` | Translation Server lifecycle management |
+| `scripts/zotero-save-url.sh` | URL saver via Translation Server |
+
+### Output Files (in `output/`)
+
+Type-based BibTeX files, symlinked from `~/org/resources/`:
+
+- `Book.bib` — itemType=book (KDC citation keys for Korean books)
+- `Online.bib` — webpage, blogPost, forumPost
+- `Software.bib` — computerProgram
+- `Reference.bib` — encyclopediaArticle, dictionaryEntry
+- `Video.bib` — videoRecording, film, tvBroadcast
+- `Article.bib` — journalArticle
+- `Misc.bib` — everything else
+
+### Environment Variables (`.envrc`)
+
+- `ZOTERO_API_KEY` — Zotero Web API key
+- `ZOTERO_USER_ID` — Zotero user ID
+- `DATA4LIBRARY_API_KEY` — Korean library API for ISBN→KDC lookup
+
+### State Files (`.sync/`, gitignored)
+
+- `items.json` — Cached Zotero items (full library)
+- `last-version` — API version number for incremental sync
+- `new-keys.json` — Pending citationKey writebacks (renamed to `.done` after completion)
+
 ## Quick Reference
 
 ```bash
@@ -43,4 +83,3 @@ git commit -m "sync beads"
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
-

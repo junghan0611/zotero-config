@@ -3,13 +3,13 @@
 gen-bibtex.py - Zotero JSON -> BibTeX 변환 엔진
 
 Converts Zotero API JSON items to citar-compatible BibTeX files.
-Splits output into Book.bib and Slipbox.bib.
+Splits output by BibTeX entry type: Book.bib, Online.bib, Software.bib, etc.
 
 Usage:
     python3 gen-bibtex.py \
         --items .sync/items.json \
         --book-bib ~/org/resources/Book.bib \
-        --slipbox-bib ~/org/resources/Slipbox.bib \
+        --output-dir ~/org/resources \
         --data4lib-key API_KEY \
         --sync-dir .sync
 """
@@ -50,6 +50,16 @@ PREFIX_MAP = {
 NO_YEAR_TYPES = frozenset(
     ["encyclopediaArticle", "webpage", "newspaperArticle", "interview", "dictionaryEntry"]
 )
+
+# BibTeX entry type -> output file stem (types not listed go to Misc.bib)
+BIB_FILE_MAP = {
+    "online": "Online",
+    "software": "Software",
+    "inreference": "Reference",
+    "video": "Video",
+    "article": "Article",
+}
+DEFAULT_BIB_STEM = "Misc"
 
 # Zotero itemType -> BibTeX entryType
 ENTRY_TYPE_MAP = {
@@ -416,9 +426,12 @@ def item_to_bibtex(item_data, citation_key, entry_type):
 # ---------------------------------------------------------------------------
 
 def process_items(items, api_key=""):
-    """Process all items and return (book_entries, slipbox_entries, new_keys)."""
+    """Process all items and return (book_entries, typed_entries, new_keys).
+
+    typed_entries is a dict mapping file stem (Online, Software, etc.) to entry lists.
+    """
     book_entries = []
-    slipbox_entries = []
+    typed_entries = {}  # stem -> [entries]
     new_keys = {}
     seen_keys = set()
 
@@ -453,13 +466,14 @@ def process_items(items, api_key=""):
         # Generate BibTeX
         entry = item_to_bibtex(data, citation_key, entry_type)
 
-        # Split: books -> Book.bib, everything else -> Slipbox.bib
+        # Split: books -> Book.bib, others -> by entry type
         if item_type == "book":
             book_entries.append(entry)
         else:
-            slipbox_entries.append(entry)
+            stem = BIB_FILE_MAP.get(entry_type, DEFAULT_BIB_STEM)
+            typed_entries.setdefault(stem, []).append(entry)
 
-    return book_entries, slipbox_entries, new_keys
+    return book_entries, typed_entries, new_keys
 
 
 def write_bib_file(path, entries, label):
@@ -491,7 +505,7 @@ def main():
     parser = argparse.ArgumentParser(description="Zotero JSON -> BibTeX converter")
     parser.add_argument("--items", required=True, help="Path to items.json")
     parser.add_argument("--book-bib", required=True, help="Output path for Book.bib")
-    parser.add_argument("--slipbox-bib", required=True, help="Output path for Slipbox.bib")
+    parser.add_argument("--output-dir", required=True, help="Output directory for type-based .bib files")
     parser.add_argument("--data4lib-key", default="", help="DATA4LIBRARY API key")
     parser.add_argument("--sync-dir", default=".sync", help="Sync directory path")
     args = parser.parse_args()
@@ -503,11 +517,16 @@ def main():
     print(f"Processing {len(items)} items...")
 
     # Process
-    book_entries, slipbox_entries, new_keys = process_items(items, args.data4lib_key)
+    book_entries, typed_entries, new_keys = process_items(items, args.data4lib_key)
 
-    # Write BibTeX files
+    # Write Book.bib
     write_bib_file(args.book_bib, book_entries, "Zotero Books")
-    write_bib_file(args.slipbox_bib, slipbox_entries, "Zotero Slipbox")
+
+    # Write type-based .bib files
+    for stem in sorted(typed_entries):
+        entries = typed_entries[stem]
+        path = os.path.join(args.output_dir, f"{stem}.bib")
+        write_bib_file(path, entries, f"Zotero {stem}")
 
     # Save new keys mapping
     if new_keys:

@@ -16,9 +16,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 SYNC_DIR="$REPO_DIR/.sync"
 
-# Output paths
-BOOK_BIB="$HOME/org/resources/Book.bib"
-SLIPBOX_BIB="$HOME/org/resources/Slipbox.bib"
+# Output paths (프로젝트 내부, ~/org/resources 에서 symlink)
+OUTPUT_DIR="$REPO_DIR/output"
+BOOK_BIB="$OUTPUT_DIR/Book.bib"
 
 # State files
 ITEMS_FILE="$SYNC_DIR/items.json"
@@ -142,8 +142,24 @@ fetch_items() {
     fetched=$(echo "$all_items" | jq 'length')
     log_success "Fetched $fetched items total"
 
-    # Save items
-    echo "$all_items" | jq '.' > "$ITEMS_FILE"
+    # Merge with existing items (incremental sync)
+    if [[ "$since" != "0" && -f "$ITEMS_FILE" && "$fetched" -gt 0 ]]; then
+        local existing
+        existing=$(jq 'length' "$ITEMS_FILE")
+        log_info "Merging $fetched new/updated items into $existing existing items..."
+        # Merge: new items override existing by key
+        jq -s '
+          (.[0] | map({(.key): .}) | add // {}) *
+          (.[1] | map({(.key): .}) | add // {})
+          | to_entries | map(.value)
+        ' "$ITEMS_FILE" <(echo "$all_items") > "${ITEMS_FILE}.tmp"
+        mv "${ITEMS_FILE}.tmp" "$ITEMS_FILE"
+        local merged
+        merged=$(jq 'length' "$ITEMS_FILE")
+        log_success "Merged: $merged items total"
+    else
+        echo "$all_items" | jq '.' > "$ITEMS_FILE"
+    fi
 }
 
 do_full() {
@@ -190,17 +206,13 @@ do_status() {
         log_warn "No cached items"
     fi
 
-    if [[ -f "$BOOK_BIB" ]]; then
-        local book_count
-        book_count=$(grep -c "^@" "$BOOK_BIB" || true)
-        log_info "Book.bib: $book_count entries"
-    fi
-
-    if [[ -f "$SLIPBOX_BIB" ]]; then
-        local slipbox_count
-        slipbox_count=$(grep -c "^@" "$SLIPBOX_BIB" || true)
-        log_info "Slipbox.bib: $slipbox_count entries"
-    fi
+    for bib in "$OUTPUT_DIR"/*.bib; do
+        if [[ -f "$bib" ]]; then
+            local bib_count
+            bib_count=$(grep -c "^@" "$bib" || true)
+            log_info "$(basename "$bib"): $bib_count entries"
+        fi
+    done
 }
 
 generate_bibtex() {
@@ -216,7 +228,7 @@ generate_bibtex() {
     local args=(
         --items "$ITEMS_FILE"
         --book-bib "$BOOK_BIB"
-        --slipbox-bib "$SLIPBOX_BIB"
+        --output-dir "$OUTPUT_DIR"
         --sync-dir "$SYNC_DIR"
     )
 
@@ -227,8 +239,8 @@ generate_bibtex() {
     python3 "$SCRIPT_DIR/gen-bibtex.py" "${args[@]}"
 
     log_success "BibTeX generation complete"
-    log_info "Book.bib:    $BOOK_BIB"
-    log_info "Slipbox.bib: $SLIPBOX_BIB"
+    log_info "Book.bib: $BOOK_BIB"
+    log_info "Output:   $OUTPUT_DIR/*.bib"
 }
 
 writeback_keys() {
