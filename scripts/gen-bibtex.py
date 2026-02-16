@@ -372,8 +372,11 @@ def item_to_bibtex(item_data, citation_key, entry_type):
     if translator:
         add("translator", translator)
 
-    # Date fields
-    add("date", item_data.get("date", ""))
+    # Date fields — timezone offset(+0900)를 제외하고 실제 연도가 있는지 확인
+    date_val = item_data.get("date", "")
+    if date_val and not re.search(r"(?<!\+)(?<!-)\b\d{4}\b", date_val):
+        date_val = ""
+    add("date", date_val)
     add("shorttitle", item_data.get("shortTitle", ""))
 
     # Publisher / location
