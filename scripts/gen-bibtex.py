@@ -372,10 +372,11 @@ def item_to_bibtex(item_data, citation_key, entry_type):
     if translator:
         add("translator", translator)
 
-    # Date fields — timezone offset(+0900)를 제외하고 실제 연도가 있는지 확인
+    # Date fields — biblatex 호환 형식만 통과, 비표준은 연도만 추출
     date_val = item_data.get("date", "")
-    if date_val and not re.search(r"(?<!\+)(?<!-)\b\d{4}\b", date_val):
-        date_val = ""
+    if date_val and not re.match(r"^\d{4}(-\d{2}(-\d{2}(T.+)?)?)?$", date_val):
+        m = re.search(r"(?<!\+)(?<!-)\b(\d{4})\b", date_val)
+        date_val = m.group(1) if m else ""
     add("date", date_val)
     add("shorttitle", item_data.get("shortTitle", ""))
 
