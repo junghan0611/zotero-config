@@ -8,6 +8,22 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OUTPUT_DIR="$SCRIPT_DIR/output"
+RESOURCES_DIR="$HOME/org/resources"
+
+# output/*.bib → ~/org/resources/ 복사 (Syncthing 호환, symlink 사용 안 함)
+copy_to_resources() {
+    if [[ ! -d "$RESOURCES_DIR" ]]; then
+        echo "[WARN] $RESOURCES_DIR 없음, 복사 건너뜀" >&2
+        return
+    fi
+    local count=0
+    for bib in "$OUTPUT_DIR"/*.bib; do
+        cp "$bib" "$RESOURCES_DIR/$(basename "$bib")"
+        count=$((count + 1))
+    done
+    echo "[OK] $count bib files → $RESOURCES_DIR"
+}
 
 case "${1:-}" in
     update)
@@ -16,6 +32,9 @@ case "${1:-}" in
         echo ""
         echo "=== GitHub starred ==="
         "$SCRIPT_DIR/scripts/gh-starred-to-bib.sh"
+        echo ""
+        echo "=== Copy to resources ==="
+        copy_to_resources
         ;;
     server)
         shift
@@ -23,7 +42,11 @@ case "${1:-}" in
         ;;
     bib)
         shift
-        exec "$SCRIPT_DIR/scripts/zotero-to-bib.sh" "$@"
+        "$SCRIPT_DIR/scripts/zotero-to-bib.sh" "$@"
+        # full/sync 후 resources로 복사 (status는 제외)
+        if [[ "${1:-}" == "full" || "${1:-}" == "sync" ]]; then
+            copy_to_resources
+        fi
         ;;
     save)
         shift
@@ -31,7 +54,8 @@ case "${1:-}" in
         ;;
     starred)
         shift
-        exec "$SCRIPT_DIR/scripts/gh-starred-to-bib.sh" "$@"
+        "$SCRIPT_DIR/scripts/gh-starred-to-bib.sh" "$@"
+        copy_to_resources
         ;;
     build)
         echo "Building bibcli..."
