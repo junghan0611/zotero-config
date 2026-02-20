@@ -9,20 +9,8 @@ Search and view bibliographic entries from the user's personal library (8,000+ e
 
 ## Prerequisites
 
-Binary must be in PATH. Build from source:
-
-```bash
-# Clone (if not already)
-git clone https://github.com/junghan0611/zotero-config.git
-cd zotero-config
-
-# Build + install to ~/.local/bin
-./run.sh build
-```
-
-Requires Go 1.21+. No external dependencies (stdlib only).
-
-Set `BIBCLI_DIR` environment variable or use `--dir` flag.
+Binary is bundled in the skill directory. Invoke via `{baseDir}/bibcli`.
+Use `--dir` flag to specify bib files location.
 
 ## Environment Paths
 
@@ -32,16 +20,16 @@ Bib files location differs by environment. Use `--dir` accordingly:
 |-------------|----------|---------|
 | **Local** (Claude Code) | `~/sync/emacs/zotero-config/output` | `bibcli search "query"` (uses `$BIBCLI_DIR`) |
 | **Local** (alt) | `~/org/resources` | `bibcli search "query" --dir ~/org/resources` |
-| **Container** (OpenClaw) | `~/org/resources` | `bibcli search "query" --dir ~/org/resources` |
+| **Container** (OpenClaw) | `~/org/resources` | `{baseDir}/bibcli search "query" --dir ~/org/resources` |
 
 ## Commands
 
 ### Search entries
 
 ```bash
-bibcli search "emacs org-mode" --max 10
-bibcli search "knowledge graph" --type Book
-bibcli search "한국" --type Book --max 5
+{baseDir}/bibcli search "emacs org-mode" --dir ~/org/resources --max 10
+{baseDir}/bibcli search "knowledge graph" --dir ~/org/resources --type Book
+{baseDir}/bibcli search "한국" --dir ~/org/resources --type Book --max 5
 ```
 
 - Multiple words = AND condition (all must match)
@@ -51,8 +39,8 @@ bibcli search "한국" --type Book --max 5
 ### Show single entry (full details)
 
 ```bash
-bibcli show "165.84-박82ㅅ"
-bibcli show "web-MermaidAscii터미널에서"
+{baseDir}/bibcli show "165.84-박82ㅅ" --dir ~/org/resources
+{baseDir}/bibcli show "web-MermaidAscii터미널에서" --dir ~/org/resources
 ```
 
 Returns all fields including abstract, url, isbn, keywords.
@@ -60,15 +48,15 @@ Returns all fields including abstract, url, isbn, keywords.
 ### List entries by type
 
 ```bash
-bibcli list --type Book --max 10
-bibcli list --type Online --max 20
-bibcli list --type Software --max 5
+{baseDir}/bibcli list --dir ~/org/resources --type Book --max 10
+{baseDir}/bibcli list --dir ~/org/resources --type Online --max 20
+{baseDir}/bibcli list --dir ~/org/resources --type Software --max 5
 ```
 
 ### Statistics
 
 ```bash
-bibcli stats
+{baseDir}/bibcli stats --dir ~/org/resources
 ```
 
 ## Flags
