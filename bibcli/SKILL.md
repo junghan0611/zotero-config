@@ -12,8 +12,15 @@ Search and view bibliographic entries from the user's personal library (8,000+ e
 Binary must be in PATH. Build from source:
 
 ```bash
-cd ~/sync/emacs/zotero-config && ./run.sh build
+# Clone (if not already)
+git clone https://github.com/junghan0611/zotero-config.git
+cd zotero-config
+
+# Build + install to ~/.local/bin
+./run.sh build
 ```
+
+Requires Go 1.21+. No external dependencies (stdlib only).
 
 Set `BIBCLI_DIR` environment variable to the bib directory (already configured in `.envrc`).
 

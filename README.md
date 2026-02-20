@@ -14,11 +14,13 @@
 Fetches your entire Zotero library via Cloud API, generates citar-compatible BibTeX files split by type, and writes back new citation keys to Zotero Cloud.
 
 ```
-./run.sh save <url>     # Save URL → Translation Server → Zotero Cloud
 ./run.sh bib full       # Full sync: 5,893 items → 7 BibTeX files (~90s)
 ./run.sh bib sync       # Incremental sync (delta only, seconds)
 ./run.sh bib status     # Show sync state
+./run.sh starred        # GitHub starred repos → github-starred.bib
+./run.sh save <url>     # Save URL → Translation Server → Zotero Cloud
 ./run.sh server start   # Start Translation Server (localhost:1969)
+./run.sh build          # Build bibcli (search CLI for AI agents)
 ```
 
 ---
@@ -50,6 +52,11 @@ run.sh bib full|sync
 ├── 4. Writeback new citationKeys → Zotero Cloud API (PATCH)
 │
 └── 5. Save state (.sync/last-version, items.json)
+
+run.sh starred
+│
+└── GitHub starred repos → github-starred.bib (2,140 entries)
+    └── gh api --paginate user/starred → jq → @software{} entries
 ```
 
 ---
@@ -77,8 +84,14 @@ zotero-config/
 │   ├── zotero-to-bib.sh   # Zotero API fetcher (bash + curl + jq)
 │   ├── gen-bibtex.py       # BibTeX engine (Python, citar-compatible)
 │   ├── writeback-keys.sh   # citationKey → Zotero Cloud (PATCH)
+│   ├── gh-starred-to-bib.sh # GitHub starred → BibTeX (gh + jq)
 │   ├── run.sh              # Translation Server manager
 │   └── zotero-save-url.sh  # URL saver via Translation Server
+├── bibcli/                 # BibTeX search CLI for AI agents (Go)
+│   ├── main.go             # CLI: search/show/list/stats
+│   ├── parser.go           # BibTeX parser (8,000 entries in 18ms)
+│   ├── search.go           # Case-insensitive multi-field AND search
+│   └── SKILL.md            # Claude Code skill definition
 ├── output/                 # Generated BibTeX files (symlinked from ~/org/resources/)
 │   ├── Book.bib
 │   ├── Online.bib
@@ -86,7 +99,8 @@ zotero-config/
 │   ├── Reference.bib
 │   ├── Video.bib
 │   ├── Article.bib
-│   └── Misc.bib
+│   ├── Misc.bib
+│   └── github-starred.bib
 ├── config/                 # BBT preferences (reference only)
 ├── plugins/                # Zotero plugin XPIs (archive)
 └── .sync/                  # Sync state (gitignored)
@@ -143,8 +157,25 @@ Then configure citar:
         "~/org/resources/Reference.bib"
         "~/org/resources/Video.bib"
         "~/org/resources/Article.bib"
-        "~/org/resources/Misc.bib"))
+        "~/org/resources/Misc.bib"
+        "~/org/resources/github-starred.bib"))
 ```
+
+---
+
+## bibcli — BibTeX Search CLI
+
+Go CLI for AI agents to search/view the full bibliography (8,030 entries). JSON-only output, stdlib only, single static binary.
+
+```bash
+./run.sh build                           # Build + install to ~/.local/bin
+bibcli search "emacs" --max 5            # Full-text search
+bibcli search "한국" --type Book          # Korean + type filter
+bibcli show "165.84-박82ㅅ"               # Full entry by citation key
+bibcli stats                              # Per-file counts
+```
+
+See [bibcli/SKILL.md](bibcli/SKILL.md) for full usage.
 
 ---
 

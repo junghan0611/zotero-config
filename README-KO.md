@@ -14,11 +14,13 @@
 Zotero Cloud API로 전체 라이브러리를 가져와서, 타입별로 분리된 citar 호환 BibTeX 파일을 생성하고, 새 citation key를 Zotero Cloud에 역동기화합니다.
 
 ```
-./run.sh save <url>     # URL 저장 → Translation Server → Zotero Cloud
 ./run.sh bib full       # 전체 동기화: 5,893 아이템 → 7개 BibTeX 파일 (~90초)
 ./run.sh bib sync       # 증분 동기화 (변경분만, 수초)
 ./run.sh bib status     # 동기화 상태 확인
+./run.sh starred        # GitHub starred → github-starred.bib
+./run.sh save <url>     # URL 저장 → Translation Server → Zotero Cloud
 ./run.sh server start   # Translation Server 시작 (localhost:1969)
+./run.sh build          # bibcli 빌드 (AI 에이전트용 검색 CLI)
 ```
 
 ---
@@ -50,6 +52,11 @@ run.sh bib full|sync
 ├── 4. 새 citationKey 역동기화 → Zotero Cloud API (PATCH)
 │
 └── 5. 상태 저장 (.sync/last-version, items.json)
+
+run.sh starred
+│
+└── GitHub starred repos → github-starred.bib (2,140 엔트리)
+    └── gh api --paginate user/starred → jq → @software{} 엔트리
 ```
 
 ---
@@ -77,8 +84,14 @@ zotero-config/
 │   ├── zotero-to-bib.sh   # Zotero API 페처 (bash + curl + jq)
 │   ├── gen-bibtex.py       # BibTeX 엔진 (Python, citar 호환)
 │   ├── writeback-keys.sh   # citationKey → Zotero Cloud (PATCH)
+│   ├── gh-starred-to-bib.sh # GitHub starred → BibTeX (gh + jq)
 │   ├── run.sh              # Translation Server 관리
 │   └── zotero-save-url.sh  # Translation Server 경유 URL 저장
+├── bibcli/                 # AI 에이전트용 BibTeX 검색 CLI (Go)
+│   ├── main.go             # CLI: search/show/list/stats
+│   ├── parser.go           # BibTeX 파서 (8,000 엔트리 18ms)
+│   ├── search.go           # 대소문자 무관 다중필드 AND 검색
+│   └── SKILL.md            # Claude Code 스킬 정의
 ├── output/                 # 생성된 BibTeX 파일 (~/org/resources/에서 symlink)
 │   ├── Book.bib
 │   ├── Online.bib
@@ -86,7 +99,8 @@ zotero-config/
 │   ├── Reference.bib
 │   ├── Video.bib
 │   ├── Article.bib
-│   └── Misc.bib
+│   ├── Misc.bib
+│   └── github-starred.bib
 ├── config/                 # BBT 설정 (참조용)
 ├── plugins/                # Zotero 플러그인 XPI (아카이브)
 └── .sync/                  # 동기화 상태 (gitignore)
@@ -143,8 +157,25 @@ citar 설정:
         "~/org/resources/Reference.bib"
         "~/org/resources/Video.bib"
         "~/org/resources/Article.bib"
-        "~/org/resources/Misc.bib"))
+        "~/org/resources/Misc.bib"
+        "~/org/resources/github-starred.bib"))
 ```
+
+---
+
+## bibcli — BibTeX 검색 CLI
+
+AI 에이전트가 전체 서지 데이터(8,030 엔트리)를 검색/조회하는 Go CLI. JSON 전용 출력, 외부 의존성 없음, 정적 바이너리.
+
+```bash
+./run.sh build                           # 빌드 + ~/.local/bin 설치
+bibcli search "emacs" --max 5            # 전문 검색
+bibcli search "한국" --type Book          # 한글 + 타입 필터
+bibcli show "165.84-박82ㅅ"               # citation key로 전체 조회
+bibcli stats                              # 파일별 통계
+```
+
+상세: [bibcli/SKILL.md](bibcli/SKILL.md)
 
 ---
 

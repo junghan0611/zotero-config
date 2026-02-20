@@ -13,12 +13,14 @@ No Zotero GUI, no Better BibTeX plugin.
 
 | Script | Purpose |
 |--------|---------|
-| `run.sh` | Main entry point (`server`, `bib`, `save` subcommands) |
+| `run.sh` | Main entry point (`bib`, `starred`, `save`, `server`, `build`) |
 | `scripts/zotero-to-bib.sh` | Zotero API fetcher (pagination, incremental sync, merge) |
 | `scripts/gen-bibtex.py` | BibTeX engine (citation key generation, KDC lookup, type-based splitting) |
 | `scripts/writeback-keys.sh` | citationKey writeback to Zotero Cloud (PATCH) |
+| `scripts/gh-starred-to-bib.sh` | GitHub starred repos → BibTeX (gh + jq) |
 | `scripts/run.sh` | Translation Server lifecycle management |
 | `scripts/zotero-save-url.sh` | URL saver via Translation Server |
+| `bibcli/` | BibTeX search CLI for AI agents (Go, JSON output) |
 
 ### Output Files (in `output/`)
 
@@ -31,6 +33,7 @@ Type-based BibTeX files, symlinked from `~/org/resources/`:
 - `Video.bib` — videoRecording, film, tvBroadcast
 - `Article.bib` — journalArticle
 - `Misc.bib` — everything else
+- `github-starred.bib` — GitHub starred repos
 
 ### Environment Variables (`.envrc`)
 
