@@ -22,6 +22,10 @@ case "${1:-}" in
         shift
         exec "$SCRIPT_DIR/scripts/zotero-save-url.sh" "$@"
         ;;
+    starred)
+        shift
+        exec "$SCRIPT_DIR/scripts/gh-starred-to-bib.sh" "$@"
+        ;;
     build)
         echo "Building bibcli..."
         INSTALL_DIR="${2:-$HOME/.local/bin}"
@@ -44,6 +48,7 @@ Usage: $(basename "$0") <command> [args]
 Commands:
   server start|stop|status   Translation Server 관리
   bib full|sync|status       BibTeX 동기화 (Zotero Cloud → .bib)
+  starred                    GitHub starred → output/github-starred.bib
   save <url> [collection]    URL을 Zotero에 저장
   build [dir]                bibcli 빌드 + 설치 (default: ~/.local/bin)
 
@@ -51,6 +56,7 @@ Examples:
   $(basename "$0") server start
   $(basename "$0") bib full
   $(basename "$0") bib sync
+  $(basename "$0") starred
   $(basename "$0") save "https://arxiv.org/abs/2103.00020"
   $(basename "$0") build
 EOF
