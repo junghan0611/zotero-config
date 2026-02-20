@@ -10,6 +10,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 case "${1:-}" in
+    update)
+        echo "=== Zotero sync ==="
+        "$SCRIPT_DIR/scripts/zotero-to-bib.sh" sync
+        echo ""
+        echo "=== GitHub starred ==="
+        "$SCRIPT_DIR/scripts/gh-starred-to-bib.sh"
+        ;;
     server)
         shift
         exec "$SCRIPT_DIR/scripts/run.sh" "$@"
@@ -46,19 +53,17 @@ case "${1:-}" in
 Usage: $(basename "$0") <command> [args]
 
 Commands:
-  server start|stop|status   Translation Server 관리
+  update                     Zotero 증분 + GitHub starred 한번에 갱신
   bib full|sync|status       BibTeX 동기화 (Zotero Cloud → .bib)
   starred                    GitHub starred → output/github-starred.bib
   save <url> [collection]    URL을 Zotero에 저장
+  server start|stop|status   Translation Server 관리
   build [dir]                bibcli 빌드 + 설치 (default: ~/.local/bin)
 
 Examples:
-  $(basename "$0") server start
+  $(basename "$0") update
   $(basename "$0") bib full
-  $(basename "$0") bib sync
-  $(basename "$0") starred
   $(basename "$0") save "https://arxiv.org/abs/2103.00020"
-  $(basename "$0") build
 EOF
         ;;
     *)
