@@ -22,7 +22,17 @@ cd zotero-config
 
 Requires Go 1.21+. No external dependencies (stdlib only).
 
-Set `BIBCLI_DIR` environment variable to the bib directory (already configured in `.envrc`).
+Set `BIBCLI_DIR` environment variable or use `--dir` flag.
+
+## Environment Paths
+
+Bib files location differs by environment. Use `--dir` accordingly:
+
+| Environment | Bib Path | Example |
+|-------------|----------|---------|
+| **Local** (Claude Code) | `~/sync/emacs/zotero-config/output` | `bibcli search "query"` (uses `$BIBCLI_DIR`) |
+| **Local** (alt) | `~/org/resources` | `bibcli search "query" --dir ~/org/resources` |
+| **Container** (OpenClaw) | `/data/org/resources` | `bibcli search "query" --dir /data/org/resources` |
 
 ## Commands
 
