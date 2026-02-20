@@ -32,7 +32,7 @@ Bib files location differs by environment. Use `--dir` accordingly:
 |-------------|----------|---------|
 | **Local** (Claude Code) | `~/sync/emacs/zotero-config/output` | `bibcli search "query"` (uses `$BIBCLI_DIR`) |
 | **Local** (alt) | `~/org/resources` | `bibcli search "query" --dir ~/org/resources` |
-| **Container** (OpenClaw) | `/data/org/resources` | `bibcli search "query" --dir /data/org/resources` |
+| **Container** (OpenClaw) | `~/org/resources` | `bibcli search "query" --dir ~/org/resources` |
 
 ## Commands
 
