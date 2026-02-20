@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+var version = "dev"
+
 func main() {
 	args := os.Args[1:]
 	if len(args) == 0 {
@@ -30,6 +32,8 @@ func main() {
 		cmdStats(rest)
 	case "help", "--help", "-h":
 		printHelp()
+	case "version", "--version", "-v":
+		fmt.Println(version)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", cmd)
 		printHelp()
@@ -246,6 +250,7 @@ Usage:
   bibcli show <citation-key> [--dir DIR]
   bibcli list [--type TYPE] [--max N] [--dir DIR]
   bibcli stats [--dir DIR]
+  bibcli version
   bibcli help
 
 Output: JSON only. Korean text preserved as-is.

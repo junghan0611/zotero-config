@@ -61,7 +61,8 @@ case "${1:-}" in
         echo "Building bibcli..."
         INSTALL_DIR="${2:-$HOME/.local/bin}"
         mkdir -p "$INSTALL_DIR"
-        (cd "$SCRIPT_DIR/bibcli" && go build -o "$INSTALL_DIR/bibcli" .)
+        BIBCLI_VERSION="$(git -C "$SCRIPT_DIR" describe --tags --always --dirty 2>/dev/null || echo dev)"
+        (cd "$SCRIPT_DIR/bibcli" && go build -ldflags "-s -w -X main.version=$BIBCLI_VERSION" -o "$INSTALL_DIR/bibcli" .)
         echo "Installed: $INSTALL_DIR/bibcli"
         # Install skill to pi-skills
         SKILL_DIR="$HOME/repos/gh/pi-skills/bibcli"
