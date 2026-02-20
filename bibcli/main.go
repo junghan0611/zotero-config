@@ -53,8 +53,12 @@ func parseFlags(args []string) (positional []string, flags map[string]string) {
 }
 
 // resolveDir determines the bib directory to use.
+// Priority: --dir flag > BIBCLI_DIR env > ../output relative to exe > ./output
 func resolveDir(flags map[string]string) string {
 	if d, ok := flags["dir"]; ok {
+		return d
+	}
+	if d := os.Getenv("BIBCLI_DIR"); d != "" {
 		return d
 	}
 	// Relative to executable
@@ -247,7 +251,10 @@ Usage:
 Output: JSON only. Korean text preserved as-is.
 
 Flags:
-  --dir DIR    Bib directory (default: ../output relative to executable)
+  --dir DIR    Bib directory (default: $BIBCLI_DIR or ../output relative to exe)
   --type TYPE  Filter by entry type or bib file stem (e.g. Book, online)
-  --max N      Maximum results (search default: 20, list default: 50)`)
+  --max N      Maximum results (search default: 20, list default: 50)
+
+Environment:
+  BIBCLI_DIR   Default bib directory (overridden by --dir flag)`)
 }

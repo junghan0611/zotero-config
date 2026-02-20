@@ -22,6 +22,21 @@ case "${1:-}" in
         shift
         exec "$SCRIPT_DIR/scripts/zotero-save-url.sh" "$@"
         ;;
+    build)
+        echo "Building bibcli..."
+        INSTALL_DIR="${2:-$HOME/.local/bin}"
+        mkdir -p "$INSTALL_DIR"
+        (cd "$SCRIPT_DIR/bibcli" && go build -o "$INSTALL_DIR/bibcli" .)
+        echo "Installed: $INSTALL_DIR/bibcli"
+        # Install skill to pi-skills
+        SKILL_DIR="$HOME/repos/gh/pi-skills/bibcli"
+        if [[ -d "$HOME/repos/gh/pi-skills" ]]; then
+            mkdir -p "$SKILL_DIR"
+            cp "$SCRIPT_DIR/bibcli/SKILL.md" "$SKILL_DIR/SKILL.md"
+            echo "Skill installed: $SKILL_DIR/SKILL.md"
+        fi
+        echo "Set BIBCLI_DIR=$SCRIPT_DIR/output in your shell profile"
+        ;;
     -h|--help|"")
         cat <<EOF
 Usage: $(basename "$0") <command> [args]
@@ -30,12 +45,14 @@ Commands:
   server start|stop|status   Translation Server 관리
   bib full|sync|status       BibTeX 동기화 (Zotero Cloud → .bib)
   save <url> [collection]    URL을 Zotero에 저장
+  build [dir]                bibcli 빌드 + 설치 (default: ~/.local/bin)
 
 Examples:
   $(basename "$0") server start
   $(basename "$0") bib full
   $(basename "$0") bib sync
   $(basename "$0") save "https://arxiv.org/abs/2103.00020"
+  $(basename "$0") build
 EOF
         ;;
     *)
