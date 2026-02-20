@@ -243,6 +243,22 @@ func TestLoadDir(t *testing.T) {
 	}
 }
 
+func BenchmarkLoadDir(b *testing.B) {
+	dir := filepath.Join("..", "output")
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		b.Skip("output/ not found")
+	}
+	for i := 0; i < b.N; i++ {
+		entries, err := LoadDir(dir)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(entries) < 5000 {
+			b.Fatalf("expected >5000 entries, got %d", len(entries))
+		}
+	}
+}
+
 func TestLoadRealBibDir(t *testing.T) {
 	// Skip if real output dir doesn't exist (CI environment)
 	outputDir := filepath.Join("..", "output")
