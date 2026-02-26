@@ -64,14 +64,8 @@ case "${1:-}" in
         BIBCLI_VERSION="$(git -C "$SCRIPT_DIR" describe --tags --always --dirty 2>/dev/null || echo dev)"
         (cd "$SCRIPT_DIR/bibcli" && go build -ldflags "-s -w -X main.version=$BIBCLI_VERSION" -o "$INSTALL_DIR/bibcli" .)
         echo "Installed: $INSTALL_DIR/bibcli"
-        # Install skill to pi-skills
-        SKILL_DIR="$HOME/repos/gh/pi-skills/bibcli"
-        if [[ -d "$HOME/repos/gh/pi-skills" ]]; then
-            mkdir -p "$SKILL_DIR"
-            cp "$SCRIPT_DIR/bibcli/SKILL.md" "$SKILL_DIR/SKILL.md"
-            echo "Skill installed: $SKILL_DIR/SKILL.md"
-        fi
         echo "Set BIBCLI_DIR=$SCRIPT_DIR/output in your shell profile"
+        echo "Skill docs: https://github.com/junghan0611/pi-skills/tree/main/bibcli"
         ;;
     -h|--help|"")
         cat <<EOF

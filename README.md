@@ -4,6 +4,8 @@
 
 > No Zotero GUI. No Better BibTeX plugin. Just API, scripts, and Emacs.
 
+> **AI Agent Skill**: [pi-skills/bibcli](https://github.com/junghan0611/pi-skills/tree/main/bibcli) — 에이전트용 스킬 문서는 pi-skills 리포에서 관리합니다.
+
 [![한글](https://img.shields.io/badge/한글-README--KO.md-blue)](README-KO.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
