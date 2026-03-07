@@ -253,18 +253,47 @@ def lookup_kdc(isbn, api_key):
     return ""
 
 
+def clean_title(title):
+    """Clean yes24/online bookstore artifacts from title.
+
+    Examples:
+        "나라는 착각 | 그레고리 번스 | 흐름출판 - 예스24" → "나라는 착각"
+        "[전자책]롤랑 바르트의 인문학" → "롤랑 바르트의 인문학"
+        "Do it! LLM을 활용한 AI 에이전트 개발 입문 - 예스24" → "Do it! LLM을 활용한 AI 에이전트 개발 입문"
+    """
+    if not title:
+        return title
+    # Remove [전자책] prefix
+    title = re.sub(r"^\[전자책\]", "", title)
+    # Remove " - 예스24" suffix
+    title = re.sub(r"\s*-\s*예스24\s*$", "", title)
+    # Remove " | author | publisher - 예스24" pattern (pipe-separated)
+    title = re.sub(r"\s*\|.*$", "", title)
+    return title.strip()
+
+
 def generate_citation_key(item_data, api_key=""):
     """Generate a citation key for an item following BBT rules."""
-    # If citationKey already set, use it
     existing = item_data.get("citationKey", "")
-    if existing:
-        return existing, False  # (key, is_new)
 
     item_type = item_data.get("itemType", "misc")
+    isbn = normalize_isbn(item_data.get("ISBN", ""))
+
+    # If citationKey already set: keep as-is UNLESS it's a book- prefix
+    # that could be upgraded to KDC (when ISBN is now available)
+    if existing:
+        if item_type == "book" and existing.startswith("book-") and isbn:
+            # Try to upgrade: fall through to KDC lookup below
+            pass
+        else:
+            return existing, False
+
     title = item_data.get("title", "")
     date = item_data.get("date", "")
     creators = item_data.get("creators", [])
-    isbn = normalize_isbn(item_data.get("ISBN", ""))
+
+    # Clean title (yes24 등 온라인 서점 아티팩트 제거)
+    title = clean_title(title)
 
     # Book with ISBN -> try KDC
     if item_type == "book" and isbn:
@@ -357,8 +386,8 @@ def item_to_bibtex(item_data, citation_key, entry_type):
         if value:
             fields.append(f"  {bib_field} = {{{value}}}")
 
-    # Title
-    add("title", item_data.get("title", ""))
+    # Title (clean online bookstore artifacts)
+    add("title", clean_title(item_data.get("title", "")))
 
     # Creators
     creators = item_data.get("creators", [])
