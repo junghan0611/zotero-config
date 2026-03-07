@@ -28,6 +28,8 @@ func main() {
 		cmdShow(rest)
 	case "list":
 		cmdList(rest)
+	case "lookup":
+		cmdLookup(rest)
 	case "stats":
 		cmdStats(rest)
 	case "help", "--help", "-h":
@@ -249,11 +251,19 @@ Usage:
   bibcli search <query> [--type TYPE] [--max N] [--dir DIR]
   bibcli show <citation-key> [--dir DIR]
   bibcli list [--type TYPE] [--max N] [--dir DIR]
+  bibcli lookup <isbn-or-title> [--max N]
   bibcli stats [--dir DIR]
   bibcli version
   bibcli help
 
 Output: JSON only. Korean text preserved as-is.
+
+Commands:
+  search     Local bib files 검색 (title, author, keywords)
+  show       Citation key로 상세 조회
+  list       타입별 목록
+  lookup     data4library 서지 검색 (ISBN 또는 제목)
+  stats      통계
 
 Flags:
   --dir DIR    Bib directory (default: $BIBCLI_DIR or ../output relative to exe)
@@ -261,5 +271,6 @@ Flags:
   --max N      Maximum results (search default: 20, list default: 50)
 
 Environment:
-  BIBCLI_DIR   Default bib directory (overridden by --dir flag)`)
+  BIBCLI_DIR              Default bib directory (overridden by --dir flag)
+  DATA4LIBRARY_API_KEY    data4library API key (lookup command)`)
 }
