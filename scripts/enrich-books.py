@@ -190,10 +190,47 @@ def d4l_lookup_isbn(api_key, isbn):
     return None
 
 
+def title_similarity(a, b):
+    """Calculate title similarity ratio (0.0~1.0).
+
+    Uses longest common subsequence ratio for robust Korean matching.
+    """
+    a = a.lower().replace(" ", "")
+    b = b.lower().replace(" ", "")
+    if not a or not b:
+        return 0.0
+
+    # Exact containment
+    if a == b:
+        return 1.0
+    if a in b or b in a:
+        return min(len(a), len(b)) / max(len(a), len(b))
+
+    # LCS length
+    m, n = len(a), len(b)
+    # Optimize: if lengths are too different, skip
+    if min(m, n) / max(m, n) < 0.4:
+        return 0.0
+
+    prev = [0] * (n + 1)
+    for i in range(m):
+        curr = [0] * (n + 1)
+        for j in range(n):
+            if a[i] == b[j]:
+                curr[j + 1] = prev[j] + 1
+            else:
+                curr[j + 1] = max(curr[j], prev[j + 1])
+        prev = curr
+
+    lcs_len = prev[n]
+    return (2.0 * lcs_len) / (m + n)
+
+
 def find_isbn_by_title(api_key, clean_title):
     """Search data4library by title and find best matching ISBN.
 
     Returns (isbn13, book_detail) or (None, None).
+    Requires similarity >= 0.6 to avoid false positives.
     """
     if not clean_title:
         return None, None
@@ -201,45 +238,42 @@ def find_isbn_by_title(api_key, clean_title):
     # Try full title first
     results = d4l_search_by_title(api_key, clean_title)
 
-    # If no results, try shorter keywords
+    # If no results, try first significant word (but only if title has multiple words)
     if not results:
-        # Take first 2 significant words
         words = clean_title.split()
-        if len(words) > 2:
-            short = words[0]
-            results = d4l_search_by_title(api_key, short)
+        if len(words) >= 2:
+            results = d4l_search_by_title(api_key, words[0])
 
     if not results:
         return None, None
 
-    # Find best match: title similarity
-    clean_lower = clean_title.lower().replace(" ", "")
+    # Find best match with strict similarity
+    clean_norm = re.sub(r"\s*[:：].*$", "", clean_title)  # Remove subtitle for matching
     best = None
-    best_score = 0
+    best_score = 0.0
 
     for book in results:
         book_title = book.get("bookname", "").strip()
-        # Remove subtitle after colon
-        book_title_clean = re.sub(r"\s*:.*$", "", book_title).lower().replace(" ", "")
+        # Remove subtitle from d4l title too
+        book_title_norm = re.sub(r"\s*[:：].*$", "", book_title)
 
-        # Simple containment score
-        if clean_lower in book_title_clean or book_title_clean in clean_lower:
-            score = 100
-        else:
-            # Count matching characters
-            score = sum(1 for c in clean_lower if c in book_title_clean)
+        score = title_similarity(clean_norm, book_title_norm)
 
         if score > best_score:
             best_score = score
             best = book
 
-    if best and best_score >= len(clean_lower) * 0.5:
+    # Require high similarity (0.8+) to prevent false positives
+    if best and best_score >= 0.8:
         isbn = best.get("isbn13", "")
         if isbn:
-            # Get full details
+            log_info(f"  match: \"{best.get('bookname', '')[:50]}\" (score={best_score:.2f})")
             detail = d4l_lookup_isbn(api_key, isbn)
             return isbn, detail or best
         return None, None
+
+    if best:
+        log_warn(f"  low match: \"{best.get('bookname', '')[:50]}\" (score={best_score:.2f}, need 0.8+)")
 
     return None, None
 
