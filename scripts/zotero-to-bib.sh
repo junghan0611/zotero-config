@@ -143,7 +143,19 @@ fetch_items() {
     log_success "Fetched $fetched items total"
 
     # Merge with existing items (incremental sync)
-    if [[ "$since" != "0" && -f "$ITEMS_FILE" && "$fetched" -gt 0 ]]; then
+    if [[ "$since" != "0" ]]; then
+        # 증분 동기화: 변경 없으면 items.json 건드리지 않음
+        if [[ "$fetched" -eq 0 ]]; then
+            log_info "No changes since version $since, skipping merge"
+            return
+        fi
+        # items.json 없으면 증분 병합 불가 → full sync 폴백
+        if [[ ! -f "$ITEMS_FILE" ]]; then
+            log_warn "items.json missing — cannot merge incremental data"
+            log_warn "Falling back to full sync..."
+            fetch_items 0
+            return
+        fi
         local existing
         existing=$(jq 'length' "$ITEMS_FILE")
         log_info "Merging $fetched new/updated items into $existing existing items..."
@@ -158,6 +170,7 @@ fetch_items() {
         merged=$(jq 'length' "$ITEMS_FILE")
         log_success "Merged: $merged items total"
     else
+        # Full sync: 전체 덮어쓰기
         echo "$all_items" | jq '.' > "$ITEMS_FILE"
     fi
 }
@@ -223,6 +236,14 @@ generate_bibtex() {
 
     local count
     count=$(jq 'length' "$ITEMS_FILE")
+
+    # 안전장치: 아이템이 비정상적으로 적으면 중단
+    if [[ "$count" -lt 100 ]]; then
+        log_error "items.json has only $count items (expected 1000+). Aborting to prevent data loss."
+        log_error "Run './run.sh bib full' to recover."
+        exit 1
+    fi
+
     log_info "Generating BibTeX from $count items..."
 
     local args=(
