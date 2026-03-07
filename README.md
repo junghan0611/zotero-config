@@ -90,9 +90,10 @@ zotero-config/
 │   ├── run.sh              # Translation Server manager
 │   └── zotero-save-url.sh  # URL saver via Translation Server
 ├── bibcli/                 # BibTeX search CLI for AI agents (Go)
-│   ├── main.go             # CLI: search/show/list/stats
+│   ├── main.go             # CLI: search/show/list/lookup/stats
 │   ├── parser.go           # BibTeX parser (8,000 entries in 18ms)
 │   ├── search.go           # Case-insensitive multi-field AND search
+│   ├── lookup.go           # data4library 서지검색 (ISBN/제목)
 │   └── SKILL.md            # Claude Code skill definition
 ├── output/                 # Generated BibTeX files (symlinked from ~/org/resources/)
 │   ├── Book.bib
@@ -174,6 +175,8 @@ Go CLI for AI agents to search/view the full bibliography (8,030 entries). JSON-
 bibcli search "emacs" --max 5            # Full-text search
 bibcli search "한국" --type Book          # Korean + type filter
 bibcli show "165.84-박82ㅅ"               # Full entry by citation key
+bibcli lookup 9791192300283              # ISBN → KDC, 저자, 출판사, 연도
+bibcli lookup "슈바이처" --max 3           # 제목 검색 (data4library)
 bibcli stats                              # Per-file counts
 ```
 
