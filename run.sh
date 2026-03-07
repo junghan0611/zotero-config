@@ -9,7 +9,13 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_DIR="$SCRIPT_DIR/output"
+SYNC_DIR="$SCRIPT_DIR/.sync"
 RESOURCES_DIR="$HOME/org/resources"
+
+# Load .envrc
+if [[ -f "$SCRIPT_DIR/.envrc" ]]; then
+    set -a; source "$SCRIPT_DIR/.envrc"; set +a
+fi
 
 # output/*.bib → ~/org/resources/ 복사 (Syncthing 호환, symlink 사용 안 함)
 copy_to_resources() {
@@ -57,6 +63,24 @@ case "${1:-}" in
         "$SCRIPT_DIR/scripts/gh-starred-to-bib.sh" "$@"
         copy_to_resources
         ;;
+    enrich)
+        shift
+        ENRICH_ARGS=(
+            --items "$SYNC_DIR/items.json"
+            --sync-dir "$SYNC_DIR"
+        )
+        if [[ -n "${DATA4LIBRARY_API_KEY:-}" ]]; then
+            ENRICH_ARGS+=(--data4lib-key "$DATA4LIBRARY_API_KEY")
+        fi
+        if [[ -n "${ZOTERO_API_KEY:-}" ]]; then
+            ENRICH_ARGS+=(--zotero-key "$ZOTERO_API_KEY")
+        fi
+        if [[ -n "${ZOTERO_USER_ID:-}" ]]; then
+            ENRICH_ARGS+=(--zotero-user-id "$ZOTERO_USER_ID")
+        fi
+        ENRICH_ARGS+=("$@")
+        python3 "$SCRIPT_DIR/scripts/enrich-books.py" "${ENRICH_ARGS[@]}"
+        ;;
     build)
         echo "Building bibcli..."
         INSTALL_DIR="${2:-$HOME/.local/bin}"
@@ -74,6 +98,7 @@ Usage: $(basename "$0") <command> [args]
 Commands:
   update                     Zotero 증분 + GitHub starred 한번에 갱신
   bib full|sync|status       BibTeX 동기화 (Zotero Cloud → .bib)
+  enrich [--dry-run] [--max N]  book- 접두사 책 메타정보 보강 (data4library)
   starred                    GitHub starred → output/github-starred.bib
   save <url> [collection]    URL을 Zotero에 저장
   server start|stop|status   Translation Server 관리
@@ -82,6 +107,8 @@ Commands:
 Examples:
   $(basename "$0") update
   $(basename "$0") bib full
+  $(basename "$0") enrich --dry-run        # 미리보기
+  $(basename "$0") enrich --max 3          # 3건만 실행
   $(basename "$0") save "https://arxiv.org/abs/2103.00020"
 EOF
         ;;
