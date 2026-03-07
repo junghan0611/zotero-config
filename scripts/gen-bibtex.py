@@ -283,8 +283,16 @@ def generate_citation_key(item_data, api_key=""):
     # that could be upgraded to KDC (when ISBN is now available)
     if existing:
         if item_type == "book" and existing.startswith("book-") and isbn:
-            # Try to upgrade: fall through to KDC lookup below
-            pass
+            # Try to upgrade to KDC
+            title = clean_title(item_data.get("title", ""))
+            kdc = lookup_kdc(isbn, api_key)
+            if kdc:
+                creators = item_data.get("creators", [])
+                author = get_first_author(creators)
+                author_code = make_author_code(author, title)
+                return f"{kdc}-{author_code}", True
+            # KDC lookup failed → keep existing book- key, don't retry
+            return existing, False
         else:
             return existing, False
 
