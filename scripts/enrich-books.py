@@ -226,6 +226,154 @@ def title_similarity(a, b):
     return (2.0 * lcs_len) / (m + n)
 
 
+# ---------------------------------------------------------------------------
+# Google Books API (fallback)
+# ---------------------------------------------------------------------------
+
+def gbooks_search(api_key, query, max_results=5):
+    """Search Google Books API, return list of volume dicts."""
+    url = (
+        f"https://www.googleapis.com/books/v1/volumes"
+        f"?q={urllib.parse.quote(query)}"
+        f"&maxResults={max_results}"
+        f"&key={urllib.parse.quote(api_key)}"
+    )
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "enrich-books/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data.get("items", [])
+    except Exception as e:
+        log_warn(f"  Google Books search failed: {e}")
+        return []
+
+
+def find_isbn_via_gbooks(gbooks_key, clean_title, author_hint=""):
+    """Search Google Books for ISBN. Returns (isbn13, gbooks_info) or (None, None).
+
+    gbooks_info: {title, authors, publisher, date, isbn13}
+    """
+    if not gbooks_key or not clean_title:
+        return None, None
+
+    query = clean_title
+    if author_hint:
+        query = f"{clean_title} {author_hint}"
+
+    results = gbooks_search(gbooks_key, query, max_results=5)
+    if not results:
+        return None, None
+
+    # Find best match
+    best = None
+    best_score = 0.0
+
+    for item in results:
+        info = item.get("volumeInfo", {})
+        book_title = info.get("title", "")
+        book_title_norm = re.sub(r"\s*[:：].*$", "", book_title)
+
+        score = title_similarity(
+            re.sub(r"\s*[:：].*$", "", clean_title),
+            book_title_norm,
+        )
+
+        if score > best_score:
+            best_score = score
+            best = info
+
+    if best and best_score >= 0.8:
+        # Extract ISBN-13
+        isbn13 = None
+        for ident in best.get("industryIdentifiers", []):
+            if ident.get("type") == "ISBN_13":
+                isbn13 = ident["identifier"]
+                break
+
+        if isbn13:
+            gbooks_info = {
+                "title": best.get("title", ""),
+                "authors": best.get("authors", []),
+                "publisher": best.get("publisher", ""),
+                "date": best.get("publishedDate", ""),
+                "isbn13": isbn13,
+            }
+            log_info(f"  gbooks match: \"{best.get('title', '')[:50]}\" (score={best_score:.2f})")
+            return isbn13, gbooks_info
+
+    if best and best_score > 0:
+        log_warn(f"  gbooks low match: \"{best.get('title', '')[:50]}\" (score={best_score:.2f}, need 0.8+)")
+
+    return None, None
+
+
+def find_original_title(gbooks_key, authors, ko_title):
+    """Search Google Books for original (English) title of a translated book.
+
+    Strategy: search by author name with langRestrict=en,
+    then pick the most relevant English title.
+
+    Args:
+        authors: list of author name strings
+        ko_title: Korean title (for logging)
+
+    Returns: original title string or ""
+    """
+    if not gbooks_key or not authors:
+        return ""
+
+    # Find first non-Korean author name
+    author = ""
+    for a in authors:
+        if a and not is_korean(a[0]):
+            author = a
+            break
+
+    if not author:
+        return ""
+
+    # Search by author name only, English books
+    url = (
+        f"https://www.googleapis.com/books/v1/volumes"
+        f"?q={urllib.parse.quote('inauthor:' + author)}"
+        f"&langRestrict=en&maxResults=10"
+        f"&key={urllib.parse.quote(gbooks_key)}"
+    )
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "enrich-books/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            items = data.get("items", [])
+    except Exception:
+        return ""
+
+    if not items:
+        return ""
+
+    # Pick the first book by the same author (exact last name match)
+    author_parts = author.lower().split()
+    author_last = author_parts[-1] if author_parts else ""
+
+    for item in items:
+        info = item.get("volumeInfo", {})
+        title = info.get("title", "")
+        item_authors = info.get("authors", [])
+
+        if not title or not item_authors:
+            continue
+
+        # Check author last name match
+        for ia in item_authors:
+            ia_parts = ia.lower().split()
+            ia_last = ia_parts[-1] if ia_parts else ""
+            if ia_last == author_last:
+                return title
+
+    return ""
+
+
 def find_isbn_by_title(api_key, clean_title):
     """Search data4library by title and find best matching ISBN.
 
@@ -378,13 +526,17 @@ def make_kdc_citation_key(kdc, author_name, title):
 # Main
 # ---------------------------------------------------------------------------
 
-def build_patch(clean_title, d4l_book, creators, kdc, isbn):
+def build_patch(clean_title, d4l_book, creators, kdc, isbn, original_title=""):
     """Build Zotero PATCH payload from enriched data."""
     patch = {}
 
     # Title
     if clean_title:
         patch["title"] = clean_title
+
+    # Original title → shortTitle
+    if original_title:
+        patch["shortTitle"] = original_title
 
     # ISBN
     if isbn:
@@ -435,7 +587,8 @@ def build_patch(clean_title, d4l_book, creators, kdc, isbn):
     return patch
 
 
-def process_item(item, api_key_d4l, api_key_zotero, user_id, dry_run=False):
+def process_item(item, api_key_d4l, api_key_zotero, user_id,
+                 gbooks_key="", dry_run=False):
     """Process a single book- item: parse, lookup, patch."""
     data = item.get("data", {})
     zotero_key = item.get("key", data.get("key", ""))
@@ -447,7 +600,6 @@ def process_item(item, api_key_d4l, api_key_zotero, user_id, dry_run=False):
     # Step 1: Parse title
     clean_title, parsed_author, parsed_publisher = parse_yes24_title(raw_title)
     if clean_title == raw_title.strip():
-        # Not a yes24 title, just clean basic patterns
         clean_title = re.sub(r"\s*-\s*예스24.*$", "", clean_title)
         clean_title = re.sub(r"^\[전자책\]", "", clean_title).strip()
 
@@ -456,31 +608,52 @@ def process_item(item, api_key_d4l, api_key_zotero, user_id, dry_run=False):
         log_info(f"  parsed author: \"{parsed_author}\"")
 
     # Step 2: Get creators from parsed author or existing (cleaned)
-    d4l_authors_str = ""
     creators = []
 
-    # Step 3: Search ISBN via data4library
+    # Step 3: Search ISBN — data4library first, then Google Books fallback
     isbn, d4l_book = find_isbn_by_title(api_key_d4l, clean_title)
+
+    if not isbn and gbooks_key:
+        # Google Books fallback
+        author_hint = parsed_author or ""
+        gb_isbn, gb_info = find_isbn_via_gbooks(gbooks_key, clean_title, author_hint)
+        if gb_isbn:
+            log_ok(f"  ISBN via Google Books: {gb_isbn}")
+            isbn = gb_isbn
+            # Try data4library for KDC with the ISBN we found
+            d4l_book = d4l_lookup_isbn(api_key_d4l, isbn)
+            if d4l_book and d4l_book.get("class_no"):
+                log_ok(f"  KDC: {d4l_book.get('class_no')} ({d4l_book.get('class_nm', '')})")
+            else:
+                # Use Google Books info as fallback (no KDC)
+                d4l_book = {
+                    "bookname": gb_info.get("title", ""),
+                    "authors": ", ".join(gb_info.get("authors", [])),
+                    "publisher": gb_info.get("publisher", ""),
+                    "publication_year": (gb_info.get("date", "") or "")[:4],
+                    "isbn13": gb_isbn,
+                    "class_no": "",
+                    "class_nm": "",
+                }
+                log_info(f"  KDC not available (foreign book?)")
 
     if isbn and d4l_book:
         log_ok(f"  ISBN found: {isbn}")
-        log_ok(f"  KDC: {d4l_book.get('class_no', 'N/A')} ({d4l_book.get('class_nm', '')})")
-        d4l_authors_str = d4l_book.get("authors", "")
-        # Prefer data4library authors (more structured)
-        creators = parse_creators_from_string(d4l_authors_str)
+        kdc = d4l_book.get("class_no", "").strip()
+        if kdc:
+            log_ok(f"  KDC: {kdc} ({d4l_book.get('class_nm', '')})")
+        authors_str = d4l_book.get("authors", "")
+        creators = parse_creators_from_string(authors_str)
     else:
         log_warn(f"  ISBN not found for \"{clean_title}\"")
         # Use parsed info from title or reconstruct from mangled creators
         existing_creators = data.get("creators", [])
         if existing_creators:
-            # Zotero mangled pattern: lastName="역", firstName="그레고리 번스 저/홍우진"
-            # Reconstruct by combining all parts
             for c in existing_creators:
                 first = (c.get("firstName") or "").strip()
                 last = (c.get("lastName") or "").strip()
                 name = c.get("name") or ""
                 if not name:
-                    # Remove "역" as standalone lastName
                     if last == "역" and first:
                         name = first
                     elif last and first:
@@ -491,14 +664,37 @@ def process_item(item, api_key_d4l, api_key_zotero, user_id, dry_run=False):
                     creators.extend(parse_creators_from_string(name))
         if not creators and parsed_author:
             creators = [{"creatorType": "author", "name": parsed_author}]
-        if not creators and parsed_publisher:
-            # At minimum, use the publisher from title as hint
-            pass
 
     kdc = d4l_book.get("class_no", "").strip() if d4l_book else ""
 
+    # Step 3b: Find original title for translated books
+    original_title = ""
+    if gbooks_key:
+        # Collect all author names (prefer non-Korean for original title search)
+        gb_authors = []
+        if d4l_book:
+            a = d4l_book.get("authors", "")
+            if isinstance(a, list):
+                gb_authors = a
+            elif isinstance(a, str) and a:
+                # d4l format: "저자 지음 ;번역자 옮김" → extract author part
+                for part in re.split(r"\s*;\s*", a):
+                    name = re.sub(r"\s*(?:지음|저|글|옮김|역|그림)$", "", part).strip()
+                    name = re.sub(r"\s*:\s*$", "", name)
+                    if name:
+                        gb_authors.append(name)
+        if not gb_authors and creators:
+            for c in creators:
+                if c.get("creatorType") == "author":
+                    gb_authors.append(c.get("name", ""))
+        if not gb_authors and parsed_author:
+            gb_authors = [parsed_author]
+        original_title = find_original_title(gbooks_key, gb_authors, clean_title)
+        if original_title:
+            log_ok(f"  original title: \"{original_title}\"")
+
     # Step 4: Build patch
-    patch = build_patch(clean_title, d4l_book, creators, kdc, isbn)
+    patch = build_patch(clean_title, d4l_book, creators, kdc, isbn, original_title)
 
     if not patch:
         log_warn(f"  No enrichment data, skipping")
@@ -539,6 +735,7 @@ def main():
     parser.add_argument("--data4lib-key", default="", help="DATA4LIBRARY API key")
     parser.add_argument("--zotero-key", default="", help="Zotero API key")
     parser.add_argument("--zotero-user-id", default="", help="Zotero user ID")
+    parser.add_argument("--gbooks-key", default="", help="Google Books API key (fallback)")
     parser.add_argument("--dry-run", action="store_true", help="Preview without PATCHing")
     parser.add_argument("--max", type=int, default=0, help="Max items to process (0=all)")
     args = parser.parse_args()
@@ -575,7 +772,7 @@ def main():
         try:
             ok = process_item(
                 item, args.data4lib_key, args.zotero_key, args.zotero_user_id,
-                dry_run=args.dry_run,
+                gbooks_key=args.gbooks_key, dry_run=args.dry_run,
             )
             if ok:
                 success += 1

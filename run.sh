@@ -12,9 +12,12 @@ OUTPUT_DIR="$SCRIPT_DIR/output"
 SYNC_DIR="$SCRIPT_DIR/.sync"
 RESOURCES_DIR="$HOME/org/resources"
 
-# Load .envrc
+# Load .envrc and ~/.env.local
 if [[ -f "$SCRIPT_DIR/.envrc" ]]; then
     set -a; source "$SCRIPT_DIR/.envrc"; set +a
+fi
+if [[ -f "$HOME/.env.local" ]]; then
+    set -a; source "$HOME/.env.local"; set +a
 fi
 
 # output/*.bib → ~/org/resources/ 복사 (Syncthing 호환, symlink 사용 안 함)
@@ -77,6 +80,9 @@ case "${1:-}" in
         fi
         if [[ -n "${ZOTERO_USER_ID:-}" ]]; then
             ENRICH_ARGS+=(--zotero-user-id "$ZOTERO_USER_ID")
+        fi
+        if [[ -n "${GOOGLE_BOOKS_API_KEY:-}" ]]; then
+            ENRICH_ARGS+=(--gbooks-key "$GOOGLE_BOOKS_API_KEY")
         fi
         ENRICH_ARGS+=("$@")
         python3 "$SCRIPT_DIR/scripts/enrich-books.py" "${ENRICH_ARGS[@]}"
