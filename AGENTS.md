@@ -50,6 +50,7 @@ Type-based BibTeX files, symlinked from `~/org/resources/`:
 ## Quick Reference
 
 ```bash
+br create --title "book 메타정보 자동" --description "## 현황..."
 br ready              # Find available work
 br show <id>          # View issue details
 br update <id> --status in_progress  # Claim work
