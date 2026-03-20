@@ -61,3 +61,4 @@ workspace/translation-server
 
 # Python cache
 __pycache__/
+output/.auctex-auto/
