@@ -1,11 +1,12 @@
 package main
 
 import (
+	"sort"
 	"strings"
 )
 
 // searchFields are the Entry fields searched by Search.
-var searchFields = []string{"title", "author", "keywords", "date", "abstract"}
+var searchFields = []string{"title", "author", "keywords", "date", "abstract", "url"}
 
 // Search filters entries by query and type.
 // query: space-separated words (AND logic, case-insensitive).
@@ -20,8 +21,15 @@ var searchFields = []string{"title", "author", "keywords", "date", "abstract"}
 func Search(entries []Entry, query string, typeFilter string, max int) []Entry {
 	words := splitQuery(query)
 	typeLower := strings.ToLower(typeFilter)
+	queryLower := strings.ToLower(strings.TrimSpace(query))
 
-	var results []Entry
+	type scoredEntry struct {
+		entry Entry
+		score int
+		idx   int
+	}
+
+	var scored []scoredEntry
 	for i := range entries {
 		e := &entries[i]
 
@@ -35,10 +43,28 @@ func Search(entries []Entry, query string, typeFilter string, max int) []Entry {
 			continue
 		}
 
-		results = append(results, *e)
-		if max > 0 && len(results) >= max {
-			break
+		scored = append(scored, scoredEntry{
+			entry: *e,
+			score: scoreEntry(e, queryLower, words),
+			idx:   i,
+		})
+	}
+
+	sort.SliceStable(scored, func(i, j int) bool {
+		if scored[i].score != scored[j].score {
+			return scored[i].score > scored[j].score
 		}
+		return scored[i].idx < scored[j].idx
+	})
+
+	limit := len(scored)
+	if max > 0 && max < limit {
+		limit = max
+	}
+
+	results := make([]Entry, 0, limit)
+	for i := 0; i < limit; i++ {
+		results = append(results, scored[i].entry)
 	}
 	return results
 }
@@ -96,4 +122,79 @@ func buildSearchText(e *Entry) string {
 		}
 	}
 	return b.String()
+}
+
+func scoreEntry(e *Entry, queryLower string, words []string) int {
+	if queryLower == "" {
+		return 0
+	}
+
+	score := 0
+	key := strings.ToLower(e.Key)
+	title := strings.ToLower(e.Fields["title"])
+	author := strings.ToLower(e.Fields["author"])
+	keywords := strings.ToLower(e.Fields["keywords"])
+	date := strings.ToLower(e.Fields["date"])
+	abstract := strings.ToLower(e.Fields["abstract"])
+	url := strings.ToLower(e.Fields["url"])
+
+	switch {
+	case key == queryLower:
+		score += 1000
+	case strings.Contains(key, queryLower):
+		score += 300
+	}
+
+	switch {
+	case title == queryLower:
+		score += 950
+	case strings.Contains(title, queryLower):
+		score += 260
+	}
+
+	switch {
+	case url == queryLower:
+		score += 925
+	case strings.Contains(url, queryLower):
+		score += 250
+	}
+
+	if strings.Contains(author, queryLower) {
+		score += 120
+	}
+	if strings.Contains(keywords, queryLower) {
+		score += 90
+	}
+	if strings.Contains(abstract, queryLower) {
+		score += 70
+	}
+	if strings.Contains(date, queryLower) {
+		score += 60
+	}
+
+	for _, word := range words {
+		if strings.Contains(title, word) {
+			score += 30
+		}
+		if strings.Contains(url, word) {
+			score += 25
+		}
+		if strings.Contains(key, word) {
+			score += 20
+		}
+		if strings.Contains(author, word) {
+			score += 12
+		}
+		if strings.Contains(keywords, word) {
+			score += 10
+		}
+		if strings.Contains(abstract, word) {
+			score += 6
+		}
+		if strings.Contains(date, word) {
+			score += 4
+		}
+	}
+
+	return score
 }

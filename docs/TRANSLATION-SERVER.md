@@ -113,6 +113,9 @@ cd ~/zotero-config/scripts
 # URL 저장
 ./zotero-save-url.sh "https://arxiv.org/abs/2103.00020"
 
+# 저장 후 바로 bib sync + citation key 복구 (에이전트 권장)
+./zotero-save-url.sh --sync --json "https://en.wikipedia.org/wiki/Vannevar_Bush"
+
 # 특정 컬렉션에 저장
 ./zotero-save-url.sh "https://www.nature.com/articles/s41586-021-03819-2" "COLLECTION_KEY"
 ```
@@ -257,6 +260,7 @@ curl -X POST -H "Content-Type: text/plain" \
 | 서버 시작 | `docker run -d -p 1969:1969 zotero/translation-server` |
 | 환경 변수 설정 | `export ZOTERO_API_KEY=... ZOTERO_USER_ID=...` |
 | URL 저장 | `./zotero-save-url.sh "https://..."` |
+| 에이전트용 end-to-end | `./zotero-save-url.sh --sync --json "https://..."` |
 | Emacs | `M-x zotero-save-url-at-point` |
 
 이제 GUI 없이 어디서든 Zotero에 링크를 저장할 수 있습니다!

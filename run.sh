@@ -4,7 +4,8 @@
 # Usage:
 #   ./run.sh server start|stop|status   — Translation Server 관리
 #   ./run.sh bib full|sync|status       — BibTeX 동기화
-#   ./run.sh save <url>                 — URL 저장
+#   ./run.sh save [--sync] [--json] <url> [collection]
+#                                     — URL 저장 (선택: bib sync + citation key 복구)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -106,7 +107,10 @@ Commands:
   bib full|sync|status       BibTeX 동기화 (Zotero Cloud → .bib)
   enrich [--dry-run] [--max N]  book- 접두사 책 메타정보 보강 (data4library)
   starred                    GitHub starred → output/github-starred.bib
-  save <url> [collection]    URL을 Zotero에 저장
+  save [--sync] [--json] <url> [collection]
+                             URL을 Zotero에 저장
+                             --sync: bib sync + citation key 복구
+                             --json: 기계가 읽기 쉬운 JSON 출력
   server start|stop|status   Translation Server 관리
   build [dir]                bibcli 빌드 + 설치 (default: ~/.local/bin)
 
@@ -116,6 +120,7 @@ Examples:
   $(basename "$0") enrich --dry-run        # 미리보기
   $(basename "$0") enrich --max 3          # 3건만 실행
   $(basename "$0") save "https://arxiv.org/abs/2103.00020"
+  $(basename "$0") save --sync --json "https://en.wikipedia.org/wiki/Vannevar_Bush"
 EOF
         ;;
     *)

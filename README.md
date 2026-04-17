@@ -21,6 +21,7 @@ Fetches your entire Zotero library via Cloud API, generates citar-compatible Bib
 ./run.sh bib status     # Show sync state
 ./run.sh starred        # GitHub starred repos → github-starred.bib
 ./run.sh save <url>     # Save URL → Translation Server → Zotero Cloud
+./run.sh save --sync --json <url>  # Save → bib sync → citation key recovery
 ./run.sh server start   # Start Translation Server (localhost:1969)
 ./run.sh build          # Build bibcli (search CLI for AI agents)
 ```
@@ -189,8 +190,10 @@ See [bibcli/SKILL.md](bibcli/SKILL.md) for full usage.
 For saving URLs directly to Zotero Cloud without the GUI:
 
 ```bash
-./run.sh server start              # Start localhost:1969
-./run.sh save "https://example.com" # Save URL to Zotero
+./run.sh server start                         # Start localhost:1969
+./run.sh save "https://example.com"          # Save URL to Zotero
+./run.sh save --sync --json "https://example.com"
+# => { saved:[...], resolved:[{zoteroKey,citationKey,title,...}] }
 ./run.sh server stop
 ```
 

@@ -15,6 +15,7 @@ func testEntries() []Entry {
 				"date":     "2017",
 				"keywords": "philosophy, heidegger",
 				"abstract": "서울대 철학과 박찬국 교수",
+				"url":      "https://example.com/heidegger-burden",
 			},
 			File: "Book.bib",
 		},
@@ -26,6 +27,7 @@ func testEntries() []Entry {
 				"author":   "neo",
 				"date":     "2026-01-30T09:57:19+09:00",
 				"abstract": "TypeScript 기반 도구",
+				"url":      "https://example.com/mermaid-ascii",
 			},
 			File: "Online.bib",
 		},
@@ -38,6 +40,7 @@ func testEntries() []Entry {
 				"date":     "2026-02-08T12:22:05Z",
 				"keywords": "elisp, emacs, neomacs, rust, wgpu",
 				"abstract": "NEO Emacs — A GPU-powered Emacs written in Rust",
+				"url":      "https://github.com/eval-exec/neomacs",
 			},
 			File: "Software.bib",
 		},
@@ -50,6 +53,7 @@ func testEntries() []Entry {
 				"date":     "2024",
 				"keywords": "programming",
 				"abstract": "소프트웨어 개발 업계의 선도적 인물",
+				"url":      "https://example.com/we-programmers",
 			},
 			File: "Book.bib",
 		},
@@ -62,6 +66,7 @@ func testEntries() []Entry {
 				"date":     "2021-02-26",
 				"keywords": "Computer Science, Machine Learning",
 				"abstract": "State-of-the-art computer vision systems",
+				"url":      "https://example.com/clip-paper",
 			},
 			File: "Misc.bib",
 		},
@@ -209,5 +214,39 @@ func TestSearchEmptyQueryWithTypeReturnsAll(t *testing.T) {
 	results := Search(entries, "", "misc", 0)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 misc entry, got %d", len(results))
+	}
+}
+
+func TestSearchByURL(t *testing.T) {
+	entries := testEntries()
+
+	results := Search(entries, "github.com/eval-exec/neomacs", "", 0)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result for URL search, got %d", len(results))
+	}
+	if results[0].Key != "ExecEvalExecNeomacs26" {
+		t.Errorf("expected neomacs entry, got %q", results[0].Key)
+	}
+}
+
+func TestSearchPrefersExactTitleMatch(t *testing.T) {
+	entries := append(testEntries(), Entry{
+		Type: "inreference",
+		Key:  "wiki-AsWeMay",
+		Fields: map[string]string{
+			"title":    "As We May Think",
+			"author":   "{Vannevar Bush}",
+			"abstract": "memex essay",
+			"url":      "https://en.wikipedia.org/wiki/As_We_May_Think",
+		},
+		File: "Reference.bib",
+	})
+
+	results := Search(entries, "As We May Think", "", 5)
+	if len(results) == 0 {
+		t.Fatal("expected at least 1 result")
+	}
+	if results[0].Key != "wiki-AsWeMay" {
+		t.Errorf("expected exact title match first, got %q", results[0].Key)
 	}
 }

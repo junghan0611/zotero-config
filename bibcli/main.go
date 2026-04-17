@@ -259,7 +259,7 @@ Usage:
 Output: JSON only. Korean text preserved as-is.
 
 Commands:
-  search     Local bib files 검색 (title, author, keywords)
+  search     Local bib files 검색 (title, author, keywords, url)
   show       Citation key로 상세 조회
   list       타입별 목록
   lookup     data4library 서지 검색 (ISBN 또는 제목)

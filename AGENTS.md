@@ -1,6 +1,6 @@
 # Agent Instructions
 
-This project uses **br** (beads_rust) for issue tracking. Run `br onboard` to get started.
+This project uses **br** (beads_rust) for issue tracking. Use `br ready`, `br list`, or `br info` to inspect the workspace and find work. (`br onboard` is not available in the current br build.)
 
 **Note:** `br` is non-invasive and never executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
 

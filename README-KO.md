@@ -19,6 +19,7 @@ Zotero Cloud API로 전체 라이브러리를 가져와서, 타입별로 분리�
 ./run.sh bib status     # 동기화 상태 확인
 ./run.sh starred        # GitHub starred → github-starred.bib
 ./run.sh save <url>     # URL 저장 → Translation Server → Zotero Cloud
+./run.sh save --sync --json <url>  # 저장 → bib sync → citation key 복구 (에이전트용)
 ./run.sh server start   # Translation Server 시작 (localhost:1969)
 ./run.sh build          # bibcli 빌드 (AI 에이전트용 검색 CLI)
 ```
@@ -184,8 +185,10 @@ bibcli stats                              # 파일별 통계
 GUI 없이 URL을 Zotero Cloud에 직접 저장:
 
 ```bash
-./run.sh server start              # localhost:1969 시작
-./run.sh save "https://example.com" # URL을 Zotero에 저장
+./run.sh server start                         # localhost:1969 시작
+./run.sh save "https://example.com"          # URL을 Zotero에 저장
+./run.sh save --sync --json "https://example.com"
+# => { saved:[...], resolved:[{zoteroKey,citationKey,title,...}] }
 ./run.sh server stop
 ```
 
