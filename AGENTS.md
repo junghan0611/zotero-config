@@ -56,34 +56,35 @@ br show <id>          # View issue details
 br update <id> --status in_progress  # Claim work
 br close <id>         # Complete work
 br sync --flush-only  # Export to JSONL
-git add .beads/
-git commit -m "sync beads"
 ```
 
-## Landing the Plane (Session Completion)
+## Agent Workflow
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+### Translation Server + Zotero save
 
-**MANDATORY WORKFLOW:**
+```bash
+./run.sh server start
+./run.sh save "https://example.com"
+./run.sh bib sync
+```
 
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   br sync --flush-only
-   git add .beads/
-   git commit -m "sync beads"
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
+Notes:
+- Translation Server default endpoint: `http://localhost:1969`
+- `save` writes to Zotero Web Library through the translation server
+- `bib sync` refreshes `output/*.bib` and copies them to `~/org/resources/`
+- after sync, use `bibcli` (local binary or pi skill) to search/show the new citation key
 
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
+### Bibliography integration rule
+
+When an agent creates or enriches a `bib/` note, do not leave `#+print_bibliography:` orphaned if a Zotero-backed source can be added with one extra step.
+Preferred flow:
+1. save URL to Zotero
+2. sync bib files
+3. search/show citation key with `bibcli`
+4. insert `#+reference:` into the note
+
+## Delegates / coding agents
+
+- Do not auto-push or auto-commit unless the user explicitly asked for it
+- Prepare changes, tests, and handoff notes; GLG decides the final commit/push
+- `br` is optional support for issue tracking, not a mandatory landing workflow for every task
