@@ -28,8 +28,20 @@ TEMP_FILE=$(mktemp)
 
 echo "Fetching starred repos from GitHub..." >&2
 
-# GitHub 계정 정보 가져오기
+# 이 repo는 개인 starred 기준을 기본값으로 사용한다.
+# 필요하면 GH_STARRED_ACCOUNT로 override 가능.
+TARGET_GH_USER="${GH_STARRED_ACCOUNT:-junghan0611}"
 GH_USER=$(gh api user --jq '.login')
+if [[ "$GH_USER" != "$TARGET_GH_USER" ]]; then
+  echo "[INFO] Active gh account '$GH_USER' → switching to '$TARGET_GH_USER'" >&2
+  gh auth switch --user "$TARGET_GH_USER" >/dev/null
+  GH_USER=$(gh api user --jq '.login')
+fi
+
+if [[ "$GH_USER" != "$TARGET_GH_USER" ]]; then
+  echo "[ERROR] Expected gh account '$TARGET_GH_USER' but active account is '$GH_USER'" >&2
+  exit 1
+fi
 
 # 임시 파일에 entries 먼저 저장 (개수 계산용)
 # Accept 헤더로 starred_at 필드 포함

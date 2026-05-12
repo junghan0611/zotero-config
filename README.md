@@ -6,7 +6,6 @@
 
 > **AI Agent Skill**: [pi-skills/bibcli](https://github.com/junghan0611/pi-skills/tree/main/bibcli) — 에이전트용 스킬 문서는 pi-skills 리포에서 관리합니다.
 
-[![한글](https://img.shields.io/badge/한글-README--KO.md-blue)](README-KO.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
@@ -20,6 +19,7 @@ Fetches your entire Zotero library via Cloud API, generates citar-compatible Bib
 ./run.sh bib sync       # Incremental sync (delta only, seconds)
 ./run.sh bib status     # Show sync state
 ./run.sh starred        # GitHub starred repos → github-starred.bib
+                         # default account: junghan0611
 ./run.sh save <url>     # Save URL → Translation Server → Zotero Cloud
 ./run.sh save --sync --json <url>  # Save → bib sync → citation key recovery
 ./run.sh server start   # Start Translation Server (localhost:1969)
@@ -59,6 +59,8 @@ run.sh bib full|sync
 run.sh starred
 │
 └── GitHub starred repos → github-starred.bib (2,140 entries)
+    ├── default account: junghan0611
+    ├── if active gh account differs: gh auth switch --user <account>
     └── gh api --paginate user/starred → jq → @software{} entries
 ```
 
@@ -131,6 +133,7 @@ Create `.envrc` in the project root:
 export ZOTERO_API_KEY="your-key"
 export ZOTERO_USER_ID="your-user-id"
 export DATA4LIBRARY_API_KEY="your-key"  # optional, for KDC lookup
+export GH_STARRED_ACCOUNT="junghan0611" # optional override for ./run.sh starred
 ```
 
 ### First Run
