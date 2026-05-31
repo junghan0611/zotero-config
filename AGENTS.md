@@ -2,7 +2,7 @@
 
 This project uses **br** (beads_rust) for issue tracking. Use `br ready`, `br list`, or `br info` to inspect the workspace and find work. (`br onboard` is not available in the current br build.)
 
-**Note:** `br` is non-invasive and never executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
+**Note:** `br` is non-invasive and never executes git commands. Treat `.beads/` as local workspace state unless GLG explicitly asks to version it.
 
 ## Project Overview
 
@@ -55,7 +55,7 @@ br ready              # Find available work
 br show <id>          # View issue details
 br update <id> --status in_progress  # Claim work
 br close <id>         # Complete work
-br sync --flush-only  # Export to JSONL
+br sync --flush-only  # Export to local .beads/ state
 ```
 
 ## Agent Workflow
