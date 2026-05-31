@@ -21,6 +21,20 @@ if [[ -f "$HOME/.env.local" ]]; then
     set -a; source "$HOME/.env.local"; set +a
 fi
 
+# output/*.bib 공개 커밋용 후처리
+sanitize_public_bibs() {
+    local sanitizer="$SCRIPT_DIR/scripts/sanitize-public-bib.sh"
+    if [[ ! -x "$sanitizer" ]]; then
+        echo "[WARN] $sanitizer 실행 불가, 후처리 건너뜀" >&2
+        return
+    fi
+    if [[ $# -gt 0 ]]; then
+        "$sanitizer" "$@"
+    else
+        "$sanitizer" "$OUTPUT_DIR"/*.bib
+    fi
+}
+
 # output/*.bib → ~/org/resources/ 복사 (Syncthing 호환, symlink 사용 안 함)
 copy_to_resources() {
     if [[ ! -d "$RESOURCES_DIR" ]]; then
@@ -43,6 +57,9 @@ case "${1:-}" in
         echo "=== GitHub starred ==="
         "$SCRIPT_DIR/scripts/gh-starred-to-bib.sh"
         echo ""
+        echo "=== Sanitize public bibs ==="
+        sanitize_public_bibs
+        echo ""
         echo "=== Copy to resources ==="
         copy_to_resources
         ;;
@@ -53,8 +70,9 @@ case "${1:-}" in
     bib)
         shift
         "$SCRIPT_DIR/scripts/zotero-to-bib.sh" "$@"
-        # full/sync 후 resources로 복사 (status는 제외)
+        # full/sync 후 후처리 + resources 복사 (status는 제외)
         if [[ "${1:-}" == "full" || "${1:-}" == "sync" ]]; then
+            sanitize_public_bibs
             copy_to_resources
         fi
         ;;
@@ -65,7 +83,12 @@ case "${1:-}" in
     starred)
         shift
         "$SCRIPT_DIR/scripts/gh-starred-to-bib.sh" "$@"
+        sanitize_public_bibs
         copy_to_resources
+        ;;
+    sanitize)
+        shift
+        sanitize_public_bibs "$@"
         ;;
     enrich)
         shift
@@ -107,6 +130,7 @@ Commands:
   bib full|sync|status       BibTeX 동기화 (Zotero Cloud → .bib)
   enrich [--dry-run] [--max N]  book- 접두사 책 메타정보 보강 (data4library)
   starred                    GitHub starred → output/github-starred.bib
+  sanitize [files...]        output/*.bib 공개 커밋용 후처리
   save [--sync] [--json] <url> [collection]
                              URL을 Zotero에 저장
                              --sync: bib sync + citation key 복구
@@ -119,6 +143,7 @@ Examples:
   $(basename "$0") bib full
   $(basename "$0") enrich --dry-run        # 미리보기
   $(basename "$0") enrich --max 3          # 3건만 실행
+  $(basename "$0") sanitize                # output/*.bib 후처리
   $(basename "$0") save "https://arxiv.org/abs/2103.00020"
   $(basename "$0") save --sync --json "https://en.wikipedia.org/wiki/Vannevar_Bush"
 EOF
