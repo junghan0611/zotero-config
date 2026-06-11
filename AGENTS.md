@@ -5,6 +5,22 @@
 Headless bibliographic workflow: Zotero Cloud API → citar-compatible BibTeX.
 No Zotero GUI, no Better BibTeX plugin.
 
+### Mental model — three access scenarios
+
+> Zotero Cloud is the treasure vault, the Translation Server is a translator you
+> only switch on to save a URL, and `bibcli` is the local search hand you use
+> straight from org.
+
+| # | Need | Command | Server / Cloud |
+|---|------|---------|----------------|
+| 1 | Cite a source **already in Zotero** | `bibcli search "…" --dir ~/org/resources` → `bibcli show "key"` | **None** — reads local `~/org/resources/*.bib` only; no GUI, no server, no API |
+| 2 | Save a **new URL** and cite it now | `./run.sh server status \|\| ./run.sh server start` → `./run.sh save --sync --json <url>` | Translation Server extracts metadata → Zotero Cloud → `bib sync` → returns `resolved[].citationKey` |
+| 3 | Refresh local bib from Cloud | `./run.sh bib sync` | Downloads Zotero Cloud → `.sync/items.json` → `output/*.bib` → `~/org/resources/`; PATCHes only **new** citation keys back |
+
+`bib sync` is **not** an upload of local bib to Zotero — it pulls Zotero Cloud
+down and regenerates the citar/export BibTeX. For both scenario 2 and 3 the
+note gets `#+reference: <key>` + `#+print_bibliography:`.
+
 ### Key Scripts
 
 | Script | Purpose |
