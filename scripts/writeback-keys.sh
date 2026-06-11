@@ -38,13 +38,15 @@ success=0
 failed=0
 
 jq -r 'to_entries[] | "\(.key)\t\(.value)"' "$KEYS_FILE" | while IFS=$'\t' read -r zotero_key citekey; do
-    # Get current version
-    version=$(curl -s \
+    # Get current version. Deleted items return plain text ("Item does not
+    # exist"), not JSON — guard jq so a stale key can't crash the whole run.
+    response=$(curl -s \
         -H "Zotero-API-Key: ${ZOTERO_API_KEY}" \
-        "${ZOTERO_API}/users/${ZOTERO_USER_ID}/items/${zotero_key}" | jq -r '.version')
+        "${ZOTERO_API}/users/${ZOTERO_USER_ID}/items/${zotero_key}")
+    version=$(printf '%s' "$response" | jq -r '.version // empty' 2>/dev/null || true)
 
-    if [[ -z "$version" || "$version" == "null" ]]; then
-        log_warn "  Skip $zotero_key (cannot get version)"
+    if [[ -z "$version" ]]; then
+        log_warn "  Skip $zotero_key (deleted or no version)"
         continue
     fi
 

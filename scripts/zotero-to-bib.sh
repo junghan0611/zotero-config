@@ -175,6 +175,46 @@ fetch_items() {
     fi
 }
 
+# Remove items deleted on Zotero Cloud from the local cache.
+# Incremental sync (/items/top with since) never reports deletions, so stale
+# items accumulate and later crash writeback (deleted items 404 as plain text).
+# Full sync rebuilds from /items/top, which already excludes deleted items.
+# Args: $1 = since version (fetch deletions newer than this)
+prune_deleted() {
+    local since="${1:-0}"
+    [[ -f "$ITEMS_FILE" ]] || return 0
+
+    log_info "Checking for items deleted on Zotero since version $since..."
+
+    local deleted
+    deleted=$(curl -s \
+        -H "Zotero-API-Key: ${ZOTERO_API_KEY}" \
+        "${ZOTERO_API}/users/${ZOTERO_USER_ID}/deleted?since=${since}")
+
+    # Validate JSON before trusting it (network/error pages return non-JSON).
+    local del_array
+    del_array=$(printf '%s' "$deleted" | jq -c '.items // []' 2>/dev/null) || {
+        log_warn "Could not parse deleted items list — skipping prune"
+        return 0
+    }
+
+    local del_count
+    del_count=$(printf '%s' "$del_array" | jq 'length')
+    if [[ "$del_count" -eq 0 ]]; then
+        log_info "No deleted items since version $since"
+        return 0
+    fi
+
+    jq --argjson del "$del_array" '
+        ($del | map({(.): true}) | add // {}) as $set
+        | map(select($set[.key] | not))
+    ' "$ITEMS_FILE" > "${ITEMS_FILE}.tmp" && mv "${ITEMS_FILE}.tmp" "$ITEMS_FILE"
+
+    local remaining
+    remaining=$(jq 'length' "$ITEMS_FILE")
+    log_success "Pruned up to $del_count deleted key(s) — $remaining items remain"
+}
+
 do_full() {
     log_info "=== Full Sync ==="
     mkdir -p "$SYNC_DIR"
@@ -196,6 +236,7 @@ do_sync() {
     fi
 
     fetch_items "$since"
+    prune_deleted "$since"
     generate_bibtex
     writeback_keys
 }
