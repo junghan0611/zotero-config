@@ -1,9 +1,5 @@
 # Agent Instructions
 
-This project uses **br** (beads_rust) for issue tracking. Use `br ready`, `br list`, or `br info` to inspect the workspace and find work. (`br onboard` is not available in the current br build.)
-
-**Note:** `br` is non-invasive and never executes git commands. Treat `.beads/` as local workspace state unless GLG explicitly asks to version it.
-
 ## Project Overview
 
 Headless bibliographic workflow: Zotero Cloud API → citar-compatible BibTeX.
@@ -50,41 +46,49 @@ Type-based BibTeX files, symlinked from `~/org/resources/`:
 ## Quick Reference
 
 ```bash
-br create --title "book 메타정보 자동" --description "## 현황..."
-br ready              # Find available work
-br show <id>          # View issue details
-br update <id> --status in_progress  # Claim work
-br close <id>         # Complete work
-br sync --flush-only  # Export to local .beads/ state
+./run.sh bib sync       # Incremental sync (Zotero Cloud → output/*.bib → ~/org/resources/)
+./run.sh bib full       # Full rebuild (also drops items deleted on Zotero Cloud)
+./run.sh bib status     # Sync state
+./run.sh server start   # Translation Server (localhost:1969)
+./run.sh save --sync --json <url>   # Save URL → sync → return resolved citation key
+./run.sh build          # Build bibcli
 ```
 
 ## Agent Workflow
 
-### Translation Server + Zotero save
+### Save a URL and get its citation key (preferred — one shot)
 
 ```bash
-./run.sh server start
-./run.sh save "https://example.com"
-./run.sh bib sync
+./run.sh server status || ./run.sh server start
+./run.sh save --sync --json "https://example.com/article"
+# => { saved:[...], resolved:[{zoteroKey, citationKey, title, ...}] }
 ```
 
-Notes:
-- Translation Server default endpoint: `http://localhost:1969`
-- `save` writes to Zotero Web Library through the translation server
-- `bib sync` refreshes `output/*.bib` and copies them to `~/org/resources/`
-- after sync, use `bibcli` (local binary or pi skill) to search/show the new citation key
+`--sync` runs `bib sync` after saving; `--json` returns the resolved
+`citationKey` **deterministically** — no need to grep the bib by title.
+Take the `citationKey` from `resolved[]` and drop it straight into the note's
+`#+reference:`.
+
+If you only need an *existing* key (no new save), search the local bib with the
+`bibcli` skill instead — see `~/.claude/skills/bibcli/SKILL.md`.
+
+### Fallback (when `--sync --json` is unavailable)
+
+```bash
+./run.sh save "https://example.com/article"   # writes to Zotero Cloud
+./run.sh bib sync                              # refresh output/*.bib + ~/org/resources/
+# then recover the key by distinctive title/author words:
+bibcli search "distinctive title author words" --dir ~/org/resources --max 5
+```
 
 ### Bibliography integration rule
 
-When an agent creates or enriches a `bib/` note, do not leave `#+print_bibliography:` orphaned if a Zotero-backed source can be added with one extra step.
-Preferred flow:
-1. save URL to Zotero
-2. sync bib files
-3. search/show citation key with `bibcli`
-4. insert `#+reference:` into the note
+When an agent creates or enriches a `bib/` note, do not leave
+`#+print_bibliography:` orphaned if a Zotero-backed source can be added with one
+extra step. Preferred flow: `save --sync --json` → take `resolved[].citationKey`
+→ insert `#+reference:` into the note.
 
 ## Delegates / coding agents
 
 - Do not auto-push or auto-commit unless the user explicitly asked for it
 - Prepare changes, tests, and handoff notes; GLG decides the final commit/push
-- `br` is optional support for issue tracking, not a mandatory landing workflow for every task

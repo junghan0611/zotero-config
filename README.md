@@ -4,7 +4,7 @@
 
 > No Zotero GUI. No Better BibTeX plugin. Just API, scripts, and Emacs.
 
-> **AI Agent Skill**: [pi-skills/bibcli](https://github.com/junghan0611/pi-skills/tree/main/bibcli) — 에이전트용 스킬 문서는 pi-skills 리포에서 관리합니다.
+> **AI Agent Skill**: the `bibcli` skill (search CLI + Zotero companion workflow) is built from `bibcli/` in this repo. The skill doc (`SKILL.md`) currently lives at `~/.claude/skills/bibcli/` (agent-config); relocating it into this repo is planned.
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -15,7 +15,7 @@
 Fetches your entire Zotero library via Cloud API, generates citar-compatible BibTeX files split by type, and writes back new citation keys to Zotero Cloud.
 
 ```
-./run.sh bib full       # Full sync: 5,893 items → 7 BibTeX files (~90s)
+./run.sh bib full       # Full sync: ~6,000 items → 7 BibTeX files (~90s)
 ./run.sh bib sync       # Incremental sync (delta only, seconds)
 ./run.sh bib status     # Show sync state
 ./run.sh starred        # GitHub starred repos → github-starred.bib
@@ -96,8 +96,8 @@ zotero-config/
 │   ├── main.go             # CLI: search/show/list/lookup/stats
 │   ├── parser.go           # BibTeX parser (8,000 entries in 18ms)
 │   ├── search.go           # Case-insensitive multi-field AND search
-│   ├── lookup.go           # data4library 서지검색 (ISBN/제목)
-│   └── SKILL.md            # Claude Code skill definition
+│   └── lookup.go           # data4library 서지검색 (ISBN/제목)
+│                           # (skill doc SKILL.md currently in agent-config; relocation planned)
 ├── output/                 # Generated BibTeX files (symlinked from ~/org/resources/)
 │   ├── Book.bib
 │   ├── Online.bib
@@ -184,7 +184,7 @@ bibcli lookup "슈바이처" --max 3           # 제목 검색 (data4library)
 bibcli stats                              # Per-file counts
 ```
 
-See [bibcli/SKILL.md](bibcli/SKILL.md) for full usage.
+See the `bibcli` skill doc at `~/.claude/skills/bibcli/SKILL.md` for full usage.
 
 ---
 
