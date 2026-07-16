@@ -11,7 +11,7 @@ var searchFields = []string{"title", "author", "keywords", "date", "abstract", "
 // Search filters entries by query and type.
 // query: space-separated words (AND logic, case-insensitive).
 //
-//	Matches against citation key, title, author, keywords, date, abstract.
+//	Matches against citation key, title, author, keywords, date, abstract, url.
 //
 // typeFilter: matches entry type (case-insensitive) or bib filename stem
 //
