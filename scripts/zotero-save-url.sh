@@ -258,7 +258,7 @@ extract_saved_items() {
 }
 
 run_bib_sync() {
-    log_info "Running bib sync to generate BibTeX and write back citation keys..."
+    log_info "Running bib sync to generate BibTeX (read-only, no Cloud writeback)..."
     if [[ "$OUTPUT_JSON" -eq 1 ]]; then
         "$REPO_DIR/run.sh" bib sync >&2
     else
@@ -273,12 +273,22 @@ fetch_item_from_zotero() {
         "$ZOTERO_API/users/$USER_ID/items/$zotero_key"
 }
 
-lookup_citation_key_from_done() {
+# Resolve the citation key from the generator's output. bib sync is read-only
+# and never pins the key onto Zotero Cloud, so .data.citationKey stays empty for
+# fresh saves — the deterministic key lives in .sync/new-keys.json (regenerated
+# every sync). Fall back to .done for keys pinned by a prior explicit writeback.
+lookup_citation_key_from_generated() {
     local zotero_key="$1"
+    local pending_file="$REPO_DIR/.sync/new-keys.json"
     local done_file="$REPO_DIR/.sync/new-keys.json.done"
-    if [[ -f "$done_file" ]]; then
-        jq -r --arg key "$zotero_key" '.[$key] // empty' "$done_file"
+    local key=""
+    if [[ -f "$pending_file" ]]; then
+        key=$(jq -r --arg key "$zotero_key" '.[$key] // empty' "$pending_file")
     fi
+    if [[ -z "$key" && -f "$done_file" ]]; then
+        key=$(jq -r --arg key "$zotero_key" '.[$key] // empty' "$done_file")
+    fi
+    echo "$key"
 }
 
 resolve_saved_items() {
@@ -294,7 +304,7 @@ resolve_saved_items() {
         local citation_key
         citation_key=$(echo "$item_json" | jq -r '.data.citationKey // empty')
         if [[ -z "$citation_key" ]]; then
-            citation_key=$(lookup_citation_key_from_done "$zotero_key")
+            citation_key=$(lookup_citation_key_from_generated "$zotero_key")
         fi
 
         local title

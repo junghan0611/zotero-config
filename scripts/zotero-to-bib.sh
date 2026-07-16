@@ -220,7 +220,9 @@ do_full() {
     mkdir -p "$SYNC_DIR"
     fetch_items 0
     generate_bibtex
-    writeback_keys
+    # NOTE: read-only. sync/full never mutate Zotero Cloud. Citation keys land
+    # in output/*.bib (the source of truth for citar) and in .sync/new-keys.json.
+    # To PIN keys back onto Zotero Cloud items, run an explicit `writeback`.
 }
 
 do_sync() {
@@ -238,6 +240,13 @@ do_sync() {
     fetch_items "$since"
     prune_deleted "$since"
     generate_bibtex
+    # read-only — see do_full note. Use `writeback` to pin keys to Zotero Cloud.
+}
+
+# Explicit, opt-in writeback of generated citation keys to Zotero Cloud.
+# Kept OUT of sync/full so a routine pull can never mutate the treasure vault.
+do_writeback() {
+    log_info "=== Writeback (explicit) ==="
     writeback_keys
 }
 
@@ -321,13 +330,15 @@ show_usage() {
 Usage: $(basename "$0") <command>
 
 Commands:
-  full     Full sync (fetch all items, regenerate BibTeX)
-  sync     Incremental sync (fetch changes since last version)
-  status   Show sync status
+  full       Full sync (fetch all items, regenerate BibTeX) — read-only
+  sync       Incremental sync (fetch changes since last version) — read-only
+  writeback  Pin generated citation keys back onto Zotero Cloud (explicit, mutates)
+  status     Show sync status
 
 Examples:
   $(basename "$0") full
   $(basename "$0") sync
+  $(basename "$0") writeback
   $(basename "$0") status
 
 EOF
@@ -338,9 +349,10 @@ check_dependencies
 check_credentials
 
 case "${1:-}" in
-    full)    do_full ;;
-    sync)    do_sync ;;
-    status)  do_status ;;
+    full)      do_full ;;
+    sync)      do_sync ;;
+    writeback) do_writeback ;;
+    status)    do_status ;;
     -h|--help|"")
         show_usage
         ;;

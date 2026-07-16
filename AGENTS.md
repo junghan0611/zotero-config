@@ -14,12 +14,26 @@ No Zotero GUI, no Better BibTeX plugin.
 | # | Need | Command | Server / Cloud |
 |---|------|---------|----------------|
 | 1 | Cite a source **already in Zotero** | `bibcli search "…" --dir ~/org/resources` → `bibcli show "key"` | **None** — reads local `~/org/resources/*.bib` only; no GUI, no server, no API |
-| 2 | Save a **new URL** and cite it now | `./run.sh server status \|\| ./run.sh server start` → `./run.sh save --sync --json <url>` | Translation Server extracts metadata → Zotero Cloud → `bib sync` → returns `resolved[].citationKey` |
-| 3 | Refresh local bib from Cloud | `./run.sh bib sync` | Downloads Zotero Cloud → `.sync/items.json` → `output/*.bib` → `~/org/resources/`; PATCHes only **new** citation keys back |
+| 2 | Save a **new URL** and cite it now | `./run.sh server status \|\| ./run.sh server start` → `./run.sh save --sync --json <url>` | Translation Server extracts metadata → Zotero Cloud → `bib sync` (read-only) → returns `resolved[].citationKey` from the generated key |
+| 3 | Refresh local bib from Cloud | `./run.sh bib sync` | Downloads Zotero Cloud → `.sync/items.json` → `output/*.bib` → `~/org/resources/`. **Read-only — never writes to Zotero Cloud.** |
 
-`bib sync` is **not** an upload of local bib to Zotero — it pulls Zotero Cloud
-down and regenerates the citar/export BibTeX. For both scenario 2 and 3 the
-note gets `#+reference: <key>` + `#+print_bibliography:`.
+`bib sync` / `bib full` are **read-only** with respect to Zotero Cloud: they pull
+the vault down and regenerate the citar/export BibTeX. The citation key is
+deterministic and lives in `output/*.bib` (the source of truth for citar) plus
+`.sync/new-keys.json`; no PATCH-back happens during a sync. For both scenario 2
+and 3 the note gets `#+reference: <key>` + `#+print_bibliography:`.
+
+**Consistency rule — never hand-edit `.bib`.** Every entry (yours from the
+browser Zotero Connector, an agent's from the Translation Server) enters as a
+**Zotero Cloud item** and is rendered by the single renderer `gen-bibtex.py`, so
+format is identical regardless of origin. Translation Server uses the same
+translators as the browser Connector — prefer it for URLs. `.bib` files are
+outputs; a hand-edit is clobbered on the next `bib full`.
+
+**Pinning keys to Cloud is now explicit and opt-in.** `./run.sh bib writeback`
+PATCHes generated citation keys onto their Zotero items — run it deliberately
+(e.g. after curating book KDC keys), never as a side effect of a routine pull.
+Books are still curated by hand in Zotero; sync only reads them.
 
 ### Key Scripts
 
@@ -62,8 +76,9 @@ Type-based BibTeX files, symlinked from `~/org/resources/`:
 ## Quick Reference
 
 ```bash
-./run.sh bib sync       # Incremental sync (Zotero Cloud → output/*.bib → ~/org/resources/)
-./run.sh bib full       # Full rebuild (also drops items deleted on Zotero Cloud)
+./run.sh bib sync       # Incremental sync (Zotero Cloud → output/*.bib → ~/org/resources/) — read-only
+./run.sh bib full       # Full rebuild (also drops items deleted on Zotero Cloud) — read-only
+./run.sh bib writeback  # Explicit: pin generated citation keys onto Zotero Cloud (mutates)
 ./run.sh bib status     # Sync state
 ./run.sh server start   # Translation Server (localhost:1969)
 ./run.sh save --sync --json <url>   # Save URL → sync → return resolved citation key
