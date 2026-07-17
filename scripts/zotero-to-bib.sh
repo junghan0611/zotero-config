@@ -278,7 +278,7 @@ do_status() {
     done
 }
 
-generate_bibtex() {
+generate_bibtex() (
     if [[ ! -f "$ITEMS_FILE" ]]; then
         log_error "No items file found at $ITEMS_FILE"
         exit 1
@@ -296,10 +296,17 @@ generate_bibtex() {
 
     log_info "Generating BibTeX from $count items..."
 
+    # Generate and sanitize in staging so comparison happens against the final
+    # public form. This avoids timestamp-only diffs even when sanitization
+    # changes the raw Zotero content.
+    local staging_dir
+    staging_dir=$(mktemp -d)
+    trap 'rm -rf "$staging_dir"' EXIT
+
     local args=(
         --items "$ITEMS_FILE"
-        --book-bib "$BOOK_BIB"
-        --output-dir "$OUTPUT_DIR"
+        --book-bib "$staging_dir/Book.bib"
+        --output-dir "$staging_dir"
         --sync-dir "$SYNC_DIR"
     )
 
@@ -308,11 +315,25 @@ generate_bibtex() {
     fi
 
     python3 "$SCRIPT_DIR/gen-bibtex.py" "${args[@]}"
+    "$SCRIPT_DIR/sanitize-public-bib.sh" "$staging_dir"/*.bib
+
+    local staged target
+    for staged in "$staging_dir"/*.bib; do
+        target="$OUTPUT_DIR/$(basename "$staged")"
+        if [[ -f "$target" ]] && cmp -s \
+            <(sed '/^% Updated:  /d' "$target") \
+            <(sed '/^% Updated:  /d' "$staged"); then
+            log_info "Unchanged: $target"
+        else
+            mv "$staged" "$target"
+            log_success "Updated: $target"
+        fi
+    done
 
     log_success "BibTeX generation complete"
     log_info "Book.bib: $BOOK_BIB"
     log_info "Output:   $OUTPUT_DIR/*.bib"
-}
+)
 
 writeback_keys() {
     if [[ -f "$SYNC_DIR/new-keys.json" ]]; then

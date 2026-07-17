@@ -518,7 +518,7 @@ def process_items(items, api_key=""):
 
 
 def write_bib_file(path, entries, label):
-    """Write a BibTeX file with header."""
+    """Write a BibTeX file only when its bibliography content changed."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     header = (
         f"% -*- bibtex -*-\n"
@@ -529,15 +529,24 @@ def write_bib_file(path, entries, label):
         f"% Source:   Zotero Cloud API (headless)\n"
         f"%\n"
     )
+    content = header + "\n" + "".join(f"{entry}\n\n" for entry in entries)
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            existing = f.read()
+        # The generation timestamp is metadata, not a bibliography change.
+        # Preserve the existing file (and mtime) when that is the only delta.
+        timestamp_line = r"(?m)^% Updated:  .*?$"
+        if re.sub(timestamp_line, "", existing, count=1) == re.sub(
+            timestamp_line, "", content, count=1
+        ):
+            print(f"  Unchanged: {path}")
+            return
+
     with open(path, "w", encoding="utf-8") as f:
-        f.write(header)
-        f.write("\n")
-        for entry in entries:
-            f.write(entry)
-            f.write("\n\n")
+        f.write(content)
 
     print(f"  Wrote {len(entries)} entries to {path}")
 
