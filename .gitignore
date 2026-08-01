@@ -21,7 +21,10 @@ INBOX*.org
 
 # MCP & Claude settings (로컬 AI 설정)
 .mcp.json
-.claude
+# Track operator skills; ignore the rest of .claude (local settings, etc.)
+.claude/*
+!.claude/skills/
+!.claude/skills/**
 CLAUDE.md
 
 # Environment variables (API keys)

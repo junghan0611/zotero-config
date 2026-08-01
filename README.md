@@ -4,7 +4,7 @@
 
 > No Zotero GUI. No Better BibTeX plugin. Just API, scripts, and Emacs.
 
-> **AI Agent Skill**: the `bibcli` skill (search CLI + Zotero companion workflow) is built from `bibcli/` in this repo. The skill doc (`SKILL.md`) currently lives at `~/.claude/skills/bibcli/` (agent-config); relocating it into this repo is planned.
+> **AI Agent Skills**: repo operator doctrine is `.claude/skills/zotero-config/SKILL.md` (capture vault vs local bib SSOT, sync reflex). Global search CLI skill + binary: `agent-config/skills/bibcli` (built from `bibcli/` here).
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -12,7 +12,7 @@
 
 ## What This Does
 
-Fetches your entire Zotero library via Cloud API, generates citar-compatible BibTeX files split by type, and writes back new citation keys to Zotero Cloud.
+Fetches your entire Zotero library via Cloud API and generates citar-compatible BibTeX files split by type. Local `*.bib` is the meta-bibliography SSOT; Zotero Cloud is the capture vault. Citation-key writeback to Cloud is explicit and opt-in (`./run.sh bib writeback`), not part of routine sync.
 
 ```
 ./run.sh bib full       # Full sync: ~6,000 items → 7 BibTeX files (~90s)

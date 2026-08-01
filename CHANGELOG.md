@@ -4,6 +4,25 @@ All notable changes, tracked by CalVer date tags.
 
 ## Unreleased
 
+## v2026.8.2 — capture-vault doctrine + operator skill
+
+### Documentation
+
+- Stated the operating doctrine in-repo: Zotero Cloud is the **capture vault**;
+  local `output/` → `~/org/resources/*.bib` is the **meta-bibliography SSOT**.
+- Added repo operator skill `.claude/skills/zotero-config/SKILL.md` (nixos-config
+  pattern): external-capture → `bib sync` reflex without asking, book (KDC,
+  careful) vs online/video (pull freely) split, mutation boundary, out-of-scope
+  edges (no MCP, no starred-list scrapers, no casual writeback).
+- Pointed `AGENTS.md` / `README.md` at the skill; clarified that routine sync
+  does not write citation keys back to Cloud.
+
+### Notes since v2026.6.11
+
+- Bibliography output refreshes and the read-only sync / explicit-writeback
+  split landed on main between tags; this tag bookmarks the doctrine surface
+  agents actually load.
+
 ## v2026.6.11
 
 ### Features

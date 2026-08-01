@@ -3,7 +3,30 @@
 ## Project Overview
 
 Headless bibliographic workflow: Zotero Cloud API → citar-compatible BibTeX.
-No Zotero GUI, no Better BibTeX plugin.
+No Zotero GUI, no Better BibTeX plugin, no MCP.
+
+**Operator skill (doctrine + reflexes):**
+`.claude/skills/zotero-config/SKILL.md` — read when capturing, syncing, or
+touching mutation boundaries. Global search CLI skill: `bibcli` in agent-config.
+
+### Doctrine — capture vault vs meta-bib SSOT
+
+```text
+Zotero Cloud  = capture vault (phone / browser Connector / save URL)
+local *.bib   = meta bibliography SSOT (output/ → ~/org/resources/)
+bibcli        = the only hand that reads the SSOT for agents
+```
+
+- What is not yet in local `*.bib` is not yet bibliography SSOT — even if it
+  sits in Zotero Cloud. After phone/browser capture, run `./run.sh bib sync`
+  **without waiting to be asked**, then `bibcli search`.
+- **Books** are carefully curated (KDC, author/translator, stable citation
+  keys). Do not bulk-automate or casually writeback. `lookup`/data4library is
+  assistive correction, not a full autopilot.
+- **Online / Video / web** are the convenient inflow — capture freely, pull
+  with sync. Do not expand the boundary to YouTube starred lists or other
+  scrapers; only what entered Zotero is eligible for the SSOT.
+- Code stays thin; operational detail lives in the skills.
 
 ### Mental model — three access scenarios
 
@@ -34,6 +57,10 @@ outputs; a hand-edit is clobbered on the next `bib full`.
 PATCHes generated citation keys onto their Zotero items — run it deliberately
 (e.g. after curating book KDC keys), never as a side effect of a routine pull.
 Books are still curated by hand in Zotero; sync only reads them.
+
+**External-capture reflex:** if GLG saved from phone/browser and asks to find
+or cite it, `./run.sh bib sync` first — do not require a separate "please sync"
+instruction. `bib sync` is read-only against Cloud.
 
 ### Key Scripts
 
