@@ -1,7 +1,8 @@
 # NEXT — zotero-config
 
-> Disposable handoff. Steward public face: botlog `20260304T105300` (§zotero-config).
-> Do not mint llmlog for routine progress — update that room + this file.
+> Disposable handoff. Steward public face: **`denote:20260304T105300`** (§zotero-config).
+> After meaningful ops/doctrine change → update that botlog (히스토리 ± 현재 보고).
+> Do not mint llmlog/new botlog for routine progress — that room + this file only.
 
 ## NOW
 
@@ -24,7 +25,7 @@
 | Operator skill | `.claude/skills/zotero-config/SKILL.md` |
 | Org intake skill | `agent-config` → `bibcli` skill |
 | Local bib SSOT | `~/org/resources/*.bib` |
-| Steward botlog | `denote:20260304T105300` |
+| Steward botlog | **`denote:20260304T105300`** — update intermittently when posture shifts |
 
 ## DO NOT
 

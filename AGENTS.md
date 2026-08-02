@@ -10,6 +10,12 @@ No Zotero GUI, no Better BibTeX plugin, no MCP.
 books/KDC, or any mutation boundary. Global search CLI skill: `bibcli` in
 agent-config.
 
+**Public steward face (botlog 담당자 문서):**
+`denote:20260304T105300` — `§zotero-config: 캡처 금고와 메타 서지의 얇은 손`
+(`~/org/botlog/20260304T105300--….org`). After meaningful posture/boundary changes,
+update that room (히스토리 + 현재 보고) — do **not** mint a new botlog/llmlog.
+Session handoff stays in `NEXT.md`.
+
 ### Doctrine — capture vault vs meta-bib SSOT
 
 ```text
@@ -169,6 +175,17 @@ Read skill §1b. Agent **judges** style + approximate KDC key (unique in SSOT),
 then `./run.sh pin --sync`. `lookup` is optional. Never leave `book-…` as the
 final key when citing from org. Never run `enrich` unless explicitly asked.
 Never touch `dateAdded`.
+
+## Steward botlog hygiene
+
+| When | Where |
+|------|--------|
+| Doctrine / pin / collection / skill boundary shifted | Update `20260304T105300` (히스토리 line + short 현재 보고 if needed) |
+| Next concrete step only | `NEXT.md` |
+| Routine bib refresh | no steward note |
+
+Never create a second `§zotero-config` botlog. Prefer empty-room reopen only if
+this ID were retired (it is the living face).
 
 ## Delegates / coding agents
 

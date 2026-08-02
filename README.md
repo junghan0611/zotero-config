@@ -7,6 +7,7 @@
 > **AI Agent Skills**: repo operator doctrine is `.claude/skills/zotero-config/SKILL.md`
 > (capture vault vs local bib SSOT, **book ritual**, sacred `dateAdded`, sync reflex).
 > Global search CLI skill + binary: `agent-config/skills/bibcli` (built from `bibcli/` here).
+> Public steward botlog: Denote ID **`20260304T105300`** (`§zotero-config`) — update that room when posture changes; no extra llmlog.
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 

@@ -11,6 +11,11 @@ Repo: `~/repos/gh/zotero-config`.
 이 스킬은 **이 리포 오퍼레이터 핸드북**이다. `AGENTS.md`가 명령 표라면, 여기는
 에이전트가 다시 물어보지 말아야 할 **경계와 반사신경**이다.
 
+**공개 담당자 문서:** `denote:20260304T105300`
+(`§zotero-config: 캡처 금고와 메타 서지의 얇은 손`).  
+교리·경계·pin/컬렉션이 의미 있게 바뀌면 **그 방을 갱신** (히스토리 + 필요 시 현재 보고).
+새 botlog/llmlog 기본 금지. 세션 핸드오프는 리포 `NEXT.md`.
+
 ## 0. 한 줄 교리 (SSOT)
 
 ```text
@@ -238,5 +243,7 @@ bibcli lookup ISBN|제목          # 선택 보조
 | 운영 반사·책 의식·경계 (지금 읽는 것) | `.claude/skills/zotero-config/SKILL.md` |
 | 명령·파이프라인 SSOT | `AGENTS.md` |
 | 사람용 개요 | `README.md` |
-| 전역 검색 스킬 | `agent-config/skills/bibcli/SKILL.md` |
+| 전역 검색·URL 원샷 스킬 | `agent-config/skills/bibcli/SKILL.md` |
+| **공개 담당자 얼굴** | `denote:20260304T105300` (간헐 갱신) |
+| 세션 핸드오프 | `NEXT.md` |
 | 설계 이력 | `docs/plans/` |
