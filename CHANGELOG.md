@@ -4,6 +4,35 @@ All notable changes, tracked by CalVer date tags.
 
 ## Unreleased
 
+## v2026.8.2-books.1 — book ritual off the sync path
+
+### Breaking (ops)
+
+- **`bib sync` / `gen-bibtex.py` no longer call data4library for KDC.**
+  Render is network-free: existing `citationKey` is kept; missing keys get a
+  local BBT-style fallback only. Book classification stays a human ritual in
+  Zotero. Assistive candidates remain on `bibcli lookup` / explicit `enrich`.
+
+### Documentation
+
+- Expanded operator skill (`.claude/skills/zotero-config/SKILL.md`) with the
+  **book inflow ritual** (yes24 → Connector → hand-edit → library OPAC sense →
+  citation key), sacred `dateAdded`/`dateModified`, and repo identity
+  (publishing the *process* of tending a bibliography, not book recommendations).
+- Aligned `AGENTS.md` / `README.md` pipeline diagrams: writeback is not a sync
+  step; KDC is off the main path.
+- Pointed `bibcli` skill at the same boundary (`lookup` = candidate only).
+
+### Bibliography
+
+- Pulled curated book entries (incl. 이준호 3권) and related online/video
+  refreshes into `output/*.bib`.
+
+### Fixes
+
+- Sync no longer stalls when data4library is unreachable (root cause of
+  “Processing N items…” hangs during book-key upgrade attempts).
+
 ## v2026.8.2 — capture-vault doctrine + operator skill
 
 ### Documentation
@@ -38,9 +67,3 @@ All notable changes, tracked by CalVer date tags.
 - Pinned the `junghan0611` account for GitHub starred export.
 - Prevented repeated writeback when a `book-` key fails KDC lookup.
 - Raised the enrich-books ISBN match threshold to 0.8 to avoid mismatches.
-- Fixed the incremental sync bug that overwrote `items.json`.
-- Built `bibcli` as a static binary (`CGO_ENABLED=0` + `-trimpath`).
-
-## v0.2.0
-
-- Pre-CalVer baseline.

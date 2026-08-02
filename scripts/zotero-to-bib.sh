@@ -303,16 +303,14 @@ generate_bibtex() (
     staging_dir=$(mktemp -d)
     trap 'rm -rf "$staging_dir"' EXIT
 
+    # gen-bibtex is network-free: keeps existing citationKey, else local fallback.
+    # KDC assist is NOT on this path — bibcli lookup / human Zotero edit only.
     local args=(
         --items "$ITEMS_FILE"
         --book-bib "$staging_dir/Book.bib"
         --output-dir "$staging_dir"
         --sync-dir "$SYNC_DIR"
     )
-
-    if [[ -n "${DATA4LIBRARY_API_KEY:-}" ]]; then
-        args+=(--data4lib-key "$DATA4LIBRARY_API_KEY")
-    fi
 
     python3 "$SCRIPT_DIR/gen-bibtex.py" "${args[@]}"
     "$SCRIPT_DIR/sanitize-public-bib.sh" "$staging_dir"/*.bib

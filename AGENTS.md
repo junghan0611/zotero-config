@@ -5,9 +5,10 @@
 Headless bibliographic workflow: Zotero Cloud API → citar-compatible BibTeX.
 No Zotero GUI, no Better BibTeX plugin, no MCP.
 
-**Operator skill (doctrine + reflexes):**
-`.claude/skills/zotero-config/SKILL.md` — read when capturing, syncing, or
-touching mutation boundaries. Global search CLI skill: `bibcli` in agent-config.
+**Operator skill (doctrine + book ritual + reflexes):**
+`.claude/skills/zotero-config/SKILL.md` — read when capturing, syncing, touching
+books/KDC, or any mutation boundary. Global search CLI skill: `bibcli` in
+agent-config.
 
 ### Doctrine — capture vault vs meta-bib SSOT
 
@@ -20,13 +21,18 @@ bibcli        = the only hand that reads the SSOT for agents
 - What is not yet in local `*.bib` is not yet bibliography SSOT — even if it
   sits in Zotero Cloud. After phone/browser capture, run `./run.sh bib sync`
   **without waiting to be asked**, then `bibcli search`.
-- **Books** are carefully curated (KDC, author/translator, stable citation
-  keys). Do not bulk-automate or casually writeback. `lookup`/data4library is
-  assistive correction, not a full autopilot.
+- **Books** are a human ritual (yes24 → Connector → hand-edit title/author/
+  translator/date/shorttitle/abstract → approximate KDC key via library OPAC
+  sense, e.g. Suwon lib). Do not bulk-automate or casually writeback.
+  `bibcli lookup`/data4library is **candidate assist only**. Sync never calls it.
+- **`dateAdded` / `dateModified` are sacred.** They record when 힣 met a theme,
+  not just bibliographic facts. Never risk them with bulk enrich/PATCH.
 - **Online / Video / web** are the convenient inflow — capture freely, pull
   with sync. Do not expand the boundary to YouTube starred lists or other
   scrapers; only what entered Zotero is eligible for the SSOT.
-- Code stays thin; operational detail lives in the skills.
+- **Repo identity:** publishing the *process* of tending a bibliography, not
+  recommending individual books. Code stays thin; ritual detail lives in the
+  skill.
 
 ### Mental model — three access scenarios
 
@@ -38,13 +44,15 @@ bibcli        = the only hand that reads the SSOT for agents
 |---|------|---------|----------------|
 | 1 | Cite a source **already in Zotero** | `bibcli search "…" --dir ~/org/resources` → `bibcli show "key"` | **None** — reads local `~/org/resources/*.bib` only; no GUI, no server, no API |
 | 2 | Save a **new URL** and cite it now | `./run.sh server status \|\| ./run.sh server start` → `./run.sh save --sync --json <url>` | Translation Server extracts metadata → Zotero Cloud → `bib sync` (read-only) → returns `resolved[].citationKey` from the generated key |
-| 3 | Refresh local bib from Cloud | `./run.sh bib sync` | Downloads Zotero Cloud → `.sync/items.json` → `output/*.bib` → `~/org/resources/`. **Read-only — never writes to Zotero Cloud.** |
+| 3 | Refresh local bib from Cloud | `./run.sh bib sync` | Downloads Zotero Cloud → `.sync/items.json` → `output/*.bib` → `~/org/resources/`. **Read-only — never writes to Zotero Cloud.** Render is network-free. |
 
 `bib sync` / `bib full` are **read-only** with respect to Zotero Cloud: they pull
-the vault down and regenerate the citar/export BibTeX. The citation key is
-deterministic and lives in `output/*.bib` (the source of truth for citar) plus
-`.sync/new-keys.json`; no PATCH-back happens during a sync. For both scenario 2
-and 3 the note gets `#+reference: <key>` + `#+print_bibliography:`.
+the vault down and regenerate the citar/export BibTeX. Existing `citationKey`
+values are kept as-is; missing keys get a local BBT-style fallback only.
+No data4library/KDC on this path. No PATCH-back during sync.
+
+For both scenario 2 and 3 the note gets `#+reference: <key>` +
+`#+print_bibliography:`.
 
 **Consistency rule — never hand-edit `.bib`.** Every entry (yours from the
 browser Zotero Connector, an agent's from the Translation Server) enters as a
@@ -53,10 +61,10 @@ format is identical regardless of origin. Translation Server uses the same
 translators as the browser Connector — prefer it for URLs. `.bib` files are
 outputs; a hand-edit is clobbered on the next `bib full`.
 
-**Pinning keys to Cloud is now explicit and opt-in.** `./run.sh bib writeback`
+**Pinning keys to Cloud is explicit and opt-in.** `./run.sh bib writeback`
 PATCHes generated citation keys onto their Zotero items — run it deliberately
-(e.g. after curating book KDC keys), never as a side effect of a routine pull.
-Books are still curated by hand in Zotero; sync only reads them.
+(e.g. after curating book KDC keys in Zotero), never as a side effect of a
+routine pull. Books are curated by hand in Zotero; sync only reads them.
 
 **External-capture reflex:** if GLG saved from phone/browser and asks to find
 or cite it, `./run.sh bib sync` first — do not require a separate "please sync"
@@ -66,20 +74,21 @@ instruction. `bib sync` is read-only against Cloud.
 
 | Script | Purpose |
 |--------|---------|
-| `run.sh` | Main entry point (`bib`, `starred`, `save`, `server`, `build`) |
+| `run.sh` | Main entry point (`bib`, `starred`, `save`, `server`, `build`, `enrich`) |
 | `scripts/zotero-to-bib.sh` | Zotero API fetcher (pagination, incremental sync, merge) |
-| `scripts/gen-bibtex.py` | BibTeX engine (citation key generation, KDC lookup, type-based splitting) |
-| `scripts/writeback-keys.sh` | citationKey writeback to Zotero Cloud (PATCH) |
+| `scripts/gen-bibtex.py` | Network-free BibTeX renderer (keep keys / local fallback / type split) |
+| `scripts/writeback-keys.sh` | citationKey writeback to Zotero Cloud (PATCH, explicit) |
+| `scripts/enrich-books.py` | Opt-in `book-` enrich via data4library — **danger zone**, explicit only |
 | `scripts/gh-starred-to-bib.sh` | GitHub starred repos → BibTeX (gh + jq) |
 | `scripts/run.sh` | Translation Server lifecycle management |
 | `scripts/zotero-save-url.sh` | URL saver via Translation Server |
-| `bibcli/` | BibTeX search CLI for AI agents (Go, JSON output) |
+| `bibcli/` | BibTeX search CLI + `lookup` assist (Go, JSON output) |
 
 ### Output Files (in `output/`)
 
 Type-based BibTeX files, symlinked from `~/org/resources/`:
 
-- `Book.bib` — itemType=book (KDC citation keys for Korean books)
+- `Book.bib` — itemType=book (human KDC-style keys when curated)
 - `Online.bib` — webpage, blogPost, forumPost
 - `Software.bib` — computerProgram
 - `Reference.bib` — encyclopediaArticle, dictionaryEntry
@@ -92,7 +101,8 @@ Type-based BibTeX files, symlinked from `~/org/resources/`:
 
 - `ZOTERO_API_KEY` — Zotero Web API key
 - `ZOTERO_USER_ID` — Zotero user ID
-- `DATA4LIBRARY_API_KEY` — Korean library API for ISBN→KDC lookup
+- `DATA4LIBRARY_API_KEY` — optional; **only** for `bibcli lookup` / `./run.sh enrich`
+  (not required for `bib sync`)
 
 ### State Files (`.sync/`, gitignored)
 
@@ -103,13 +113,14 @@ Type-based BibTeX files, symlinked from `~/org/resources/`:
 ## Quick Reference
 
 ```bash
-./run.sh bib sync       # Incremental sync (Zotero Cloud → output/*.bib → ~/org/resources/) — read-only
+./run.sh bib sync       # Incremental sync (Zotero Cloud → output/*.bib → ~/org/resources/) — read-only, network-free render
 ./run.sh bib full       # Full rebuild (also drops items deleted on Zotero Cloud) — read-only
 ./run.sh bib writeback  # Explicit: pin generated citation keys onto Zotero Cloud (mutates)
 ./run.sh bib status     # Sync state
 ./run.sh server start   # Translation Server (localhost:1969)
 ./run.sh save --sync --json <url>   # Save URL → sync → return resolved citation key
 ./run.sh build          # Build bibcli
+bibcli lookup <isbn|title>          # KDC/서지 후보 only
 ```
 
 ## Agent Workflow
@@ -145,6 +156,13 @@ When an agent creates or enriches a `bib/` note, do not leave
 `#+print_bibliography:` orphaned if a Zotero-backed source can be added with one
 extra step. Preferred flow: `save --sync --json` → take `resolved[].citationKey`
 → insert `#+reference:` into the note.
+
+### Books
+
+Do not invent book automation. Read §1b in the operator skill. If asked to help
+with a book key: `bibcli lookup` for candidates, then stop for human confirmation
+in Zotero. Never run `enrich` or `writeback` unless GLG explicitly asks in the
+current session.
 
 ## Delegates / coding agents
 

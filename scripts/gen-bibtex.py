@@ -5,12 +5,16 @@ gen-bibtex.py - Zotero JSON -> BibTeX 변환 엔진
 Converts Zotero API JSON items to citar-compatible BibTeX files.
 Splits output by BibTeX entry type: Book.bib, Online.bib, Software.bib, etc.
 
+Network-free renderer. Citation keys already set on Zotero items are kept
+as-is. Missing keys get a local BBT-style fallback. KDC / data4library is
+NOT called here — book classification is a human ritual (see operator skill);
+assistive lookup lives in `bibcli lookup` and optional `./run.sh enrich`.
+
 Usage:
     python3 gen-bibtex.py \
         --items .sync/items.json \
         --book-bib ~/org/resources/Book.bib \
         --output-dir ~/org/resources \
-        --data4lib-key API_KEY \
         --sync-dir .sync
 """
 
@@ -18,9 +22,6 @@ import argparse
 import json
 import os
 import re
-import sys
-import urllib.request
-import urllib.error
 from datetime import datetime, timezone
 
 # ---------------------------------------------------------------------------
@@ -80,91 +81,14 @@ ENTRY_TYPE_MAP = {
     "report": "report",
 }
 
-# Korean 초성 table
-CHOSUNG = [
-    "ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ",
-    "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ",
-]
-
 # ---------------------------------------------------------------------------
-# Korean helpers
+# Citation key helpers
 # ---------------------------------------------------------------------------
-
-def get_chosung(char):
-    """Extract Korean 초성 from a syllable character."""
-    code = ord(char)
-    if 0xAC00 <= code <= 0xD7A3:
-        return CHOSUNG[(code - 0xAC00) // 588]
-    return ""
-
 
 def is_korean(char):
     """Check if character is Korean (syllable or jamo)."""
     code = ord(char)
     return (0xAC00 <= code <= 0xD7A3) or (0x3131 <= code <= 0x318E)
-
-
-def cutter_number(char):
-    """Derive a 2-digit cutter number from a character (Unicode-based approximation)."""
-    code = ord(char)
-    if 0xAC00 <= code <= 0xD7A3:
-        # Map Korean syllable range to 10-99
-        return 10 + ((code - 0xAC00) * 89) // (0xD7A3 - 0xAC00)
-    elif char.isalpha():
-        # ASCII letters: map a-z to 10-99
-        c = char.lower()
-        return 10 + (ord(c) - ord("a")) * 89 // 25
-    return 50  # fallback
-
-
-def make_author_code(author_name, title):
-    """
-    Generate 4-char Korean library author code: 성(1) + 커터번호(2) + 제목초성(1).
-    Example: 김74ㄴ
-    """
-    name = author_name.strip()
-    if not name:
-        return "unknown"
-
-    surname = name[0]
-
-    # Cutter from second character of name
-    if len(name) > 1:
-        cn = cutter_number(name[1])
-    else:
-        cn = 50
-
-    # Title 초성: first Korean character's 초성
-    title_cho = ""
-    for ch in title:
-        cho = get_chosung(ch)
-        if cho:
-            title_cho = cho
-            break
-
-    if not title_cho:
-        # Fallback: first letter of title
-        for ch in title:
-            if ch.isalpha():
-                title_cho = ch.lower()
-                break
-        if not title_cho:
-            title_cho = "x"
-
-    return f"{surname}{cn}{title_cho}"
-
-
-# ---------------------------------------------------------------------------
-# Citation key helpers
-# ---------------------------------------------------------------------------
-
-def normalize_isbn(isbn_field):
-    """Extract first ISBN and remove hyphens."""
-    if not isbn_field:
-        return ""
-    # Take first ISBN (space-separated)
-    first = isbn_field.strip().split()[0]
-    return first.replace("-", "")
 
 
 def shorttitle(title, max_words=3):
@@ -226,33 +150,6 @@ def get_first_author(creators):
     return ""
 
 
-def lookup_kdc(isbn, api_key):
-    """Look up KDC classification from DATA4LIBRARY API."""
-    if not isbn or not api_key:
-        return ""
-
-    url = (
-        f"https://data4library.kr/api/srchDtlList"
-        f"?authKey={api_key}&isbn13={isbn}&format=json"
-    )
-
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "zotero-to-bib/1.0"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            # Navigate the response structure
-            detail = data.get("response", {}).get("detail", [])
-            if detail:
-                book_info = detail[0].get("book", {})
-                class_no = book_info.get("class_no", "")
-                if class_no:
-                    return class_no.strip()
-    except Exception:
-        pass
-
-    return ""
-
-
 def clean_title(title):
     """Clean yes24/online bookstore artifacts from title.
 
@@ -272,30 +169,18 @@ def clean_title(title):
     return title.strip()
 
 
-def generate_citation_key(item_data, api_key=""):
-    """Generate a citation key for an item following BBT rules."""
+def generate_citation_key(item_data):
+    """Resolve a citation key without network I/O.
+
+    - Existing citationKey on the Zotero item is sacred — keep as-is.
+      (Book KDC keys are human-curated in Zotero; this renderer never upgrades.)
+    - Missing key → local BBT-style fallback (book-…, web-…, etc.).
+    """
     existing = item_data.get("citationKey", "")
+    if existing:
+        return existing, False
 
     item_type = item_data.get("itemType", "misc")
-    isbn = normalize_isbn(item_data.get("ISBN", ""))
-
-    # If citationKey already set: keep as-is UNLESS it's a book- prefix
-    # that could be upgraded to KDC (when ISBN is now available)
-    if existing:
-        if item_type == "book" and existing.startswith("book-") and isbn:
-            # Try to upgrade to KDC
-            title = clean_title(item_data.get("title", ""))
-            kdc = lookup_kdc(isbn, api_key)
-            if kdc:
-                creators = item_data.get("creators", [])
-                author = get_first_author(creators)
-                author_code = make_author_code(author, title)
-                return f"{kdc}-{author_code}", True
-            # KDC lookup failed → keep existing book- key, don't retry
-            return existing, False
-        else:
-            return existing, False
-
     title = item_data.get("title", "")
     date = item_data.get("date", "")
     creators = item_data.get("creators", [])
@@ -303,15 +188,7 @@ def generate_citation_key(item_data, api_key=""):
     # Clean title (yes24 등 온라인 서점 아티팩트 제거)
     title = clean_title(title)
 
-    # Book with ISBN -> try KDC
-    if item_type == "book" and isbn:
-        kdc = lookup_kdc(isbn, api_key)
-        if kdc:
-            author = get_first_author(creators)
-            author_code = make_author_code(author, title)
-            return f"{kdc}-{author_code}", True
-
-    # BBT-style key
+    # BBT-style local fallback (no KDC / no data4library)
     prefix = PREFIX_MAP.get(item_type, "")
     st = shorttitle(title)
 
@@ -466,7 +343,7 @@ def item_to_bibtex(item_data, citation_key, entry_type):
 # Main processing
 # ---------------------------------------------------------------------------
 
-def process_items(items, api_key=""):
+def process_items(items):
     """Process all items and return (book_entries, typed_entries, new_keys).
 
     typed_entries is a dict mapping file stem (Online, Software, etc.) to entry lists.
@@ -484,8 +361,8 @@ def process_items(items, api_key=""):
         if item_type in ("attachment", "note"):
             continue
 
-        # Generate citation key
-        citation_key, is_new = generate_citation_key(data, api_key)
+        # Generate citation key (local only — no network)
+        citation_key, is_new = generate_citation_key(data)
 
         # Deduplicate
         original_key = citation_key
@@ -556,8 +433,13 @@ def main():
     parser.add_argument("--items", required=True, help="Path to items.json")
     parser.add_argument("--book-bib", required=True, help="Output path for Book.bib")
     parser.add_argument("--output-dir", required=True, help="Output directory for type-based .bib files")
-    parser.add_argument("--data4lib-key", default="", help="DATA4LIBRARY API key")
     parser.add_argument("--sync-dir", default=".sync", help="Sync directory path")
+    # Accepted but ignored: kept so older callers/wrappers do not break.
+    parser.add_argument(
+        "--data4lib-key",
+        default="",
+        help=argparse.SUPPRESS,
+    )
     args = parser.parse_args()
 
     # Load items
@@ -566,8 +448,8 @@ def main():
 
     print(f"Processing {len(items)} items...")
 
-    # Process
-    book_entries, typed_entries, new_keys = process_items(items, args.data4lib_key)
+    # Process (network-free)
+    book_entries, typed_entries, new_keys = process_items(items)
 
     # Write Book.bib
     write_bib_file(args.book_bib, book_entries, "Zotero Books")

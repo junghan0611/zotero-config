@@ -4,7 +4,9 @@
 
 > No Zotero GUI. No Better BibTeX plugin. Just API, scripts, and Emacs.
 
-> **AI Agent Skills**: repo operator doctrine is `.claude/skills/zotero-config/SKILL.md` (capture vault vs local bib SSOT, sync reflex). Global search CLI skill + binary: `agent-config/skills/bibcli` (built from `bibcli/` here).
+> **AI Agent Skills**: repo operator doctrine is `.claude/skills/zotero-config/SKILL.md`
+> (capture vault vs local bib SSOT, **book ritual**, sacred `dateAdded`, sync reflex).
+> Global search CLI skill + binary: `agent-config/skills/bibcli` (built from `bibcli/` here).
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -14,9 +16,11 @@
 
 Fetches your entire Zotero library via Cloud API and generates citar-compatible BibTeX files split by type. Local `*.bib` is the meta-bibliography SSOT; Zotero Cloud is the capture vault. Citation-key writeback to Cloud is explicit and opt-in (`./run.sh bib writeback`), not part of routine sync.
 
+This public repo is not a book-recommendation list. It publishes a **personal bibliography and the process of tending it** — capture, hand curation, approximate classification, and a thin render path others can study without needing to copy.
+
 ```
-./run.sh bib full       # Full sync: ~6,000 items → 7 BibTeX files (~90s)
-./run.sh bib sync       # Incremental sync (delta only, seconds)
+./run.sh bib full       # Full sync: ~6,000 items → 7 BibTeX files
+./run.sh bib sync       # Incremental sync (delta only, seconds; network-free render)
 ./run.sh bib status     # Show sync state
 ./run.sh starred        # GitHub starred repos → github-starred.bib
                          # default account: junghan0611
@@ -36,47 +40,56 @@ run.sh bib full|sync
 ├── 1. Fetch items from Zotero Cloud API (JSON, paginated)
 │   └── /users/{id}/items/top?format=json&limit=100
 │
-├── 2. Generate citation keys (gen-bibtex.py)
-│   ├── Existing citationKey → keep as-is
-│   ├── book + ISBN → DATA4LIBRARY API → KDC classification
-│   │   └── e.g. "802.041-김74ㄴ" (KDC-AuthorCode)
-│   └── Others → BBT-style rules
-│       └── e.g. "web-perplexity", "blog-AiVampire26"
+├── 2. Render BibTeX (gen-bibtex.py) — network-free
+│   ├── Existing citationKey → keep as-is  (book KDC keys are human-set)
+│   └── Missing key → local BBT-style fallback only
+│       └── e.g. "book-…", "web-perplexity", "blog-AiVampire26"
 │
-├── 3. Write type-based BibTeX files
-│   ├── Book.bib      (1,463 entries)  ← book
-│   ├── Online.bib    (2,610 entries)  ← webpage, blogPost, forumPost
-│   ├── Software.bib  (1,082 entries)  ← computerProgram
-│   ├── Reference.bib   (365 entries)  ← encyclopediaArticle, dictionaryEntry
-│   ├── Video.bib       (239 entries)  ← videoRecording, film, tvBroadcast
-│   ├── Article.bib      (69 entries)  ← journalArticle
-│   └── Misc.bib         (62 entries)  ← everything else
+├── 3. Write type-based BibTeX files (skip file if content unchanged)
+│   ├── Book.bib
+│   ├── Online.bib    ← webpage, blogPost, forumPost
+│   ├── Software.bib  ← computerProgram
+│   ├── Reference.bib ← encyclopediaArticle, dictionaryEntry
+│   ├── Video.bib     ← videoRecording, film, tvBroadcast
+│   ├── Article.bib   ← journalArticle
+│   └── Misc.bib      ← everything else
 │
-├── 4. Writeback new citationKeys → Zotero Cloud API (PATCH)
-│
-└── 5. Save state (.sync/last-version, items.json)
+└── 4. Save state (.sync/last-version, items.json)
+    └── writeback is NOT part of sync — explicit: ./run.sh bib writeback
 
 run.sh starred
 │
-└── GitHub starred repos → github-starred.bib (2,140 entries)
+└── GitHub starred repos → github-starred.bib
     ├── default account: junghan0611
     ├── if active gh account differs: gh auth switch --user <account>
     └── gh api --paginate user/starred → jq → @software{} entries
 ```
 
+**KDC / data4library is off the sync path.** Book classification is a human ritual (library OPAC sense + hand-entered citation key in Zotero). Assistive candidates: `bibcli lookup`. Optional danger zone: `./run.sh enrich` (explicit only).
+
 ---
 
 ## Citation Key Patterns
 
-| Type | English | Korean (KDC) |
+| Type | Example | Who sets it |
 |------|---------|-------------|
-| book | `HowTakeSmart17` | `802.041-김74ㄴ` |
-| book | `CLRSIntroductionAlgorithms09` | `005-포14ㅋ` |
-| webpage | `web-perplexity` | — |
-| blogPost | `blog-AiVampire26` | — |
-| software | `200okchorganice24` | — |
+| book (curated) | `843.5-조68ㅍ2`, `802.041-김74ㄴ` | Human in Zotero (KDC-sense + author code) |
+| book (fallback) | `book-SomeTitle26` | Local render if key still missing |
+| webpage | `web-perplexity` | Local / existing |
+| blogPost | `blog-AiVampire26` | Local / existing |
+| software | `200okchorganice24` | Local / existing |
 
-Korean books with ISBN get a KDC classification number + 4-char author code via [DATA4LIBRARY](https://data4library.kr/) API.
+---
+
+## Book ritual (summary)
+
+Full doctrine: `.claude/skills/zotero-config/SKILL.md` §1b.
+
+1. Find a book (often yes24) → Firefox Zotero Connector → Cloud vault  
+2. Hand-edit in Zotero: title, author, translator, date, shorttitle, abstract  
+3. Set citation key with approximate decimal-class sense (e.g. Suwon library OPAC)  
+4. `./run.sh bib sync` → local `Book.bib`  
+5. Never bulk-automate; never risk `dateAdded` / `dateModified` — they record *when the theme was met*
 
 ---
 
@@ -87,32 +100,25 @@ zotero-config/
 ├── run.sh                 # Main entry point
 ├── scripts/
 │   ├── zotero-to-bib.sh   # Zotero API fetcher (bash + curl + jq)
-│   ├── gen-bibtex.py       # BibTeX engine (Python, citar-compatible)
-│   ├── writeback-keys.sh   # citationKey → Zotero Cloud (PATCH)
+│   ├── gen-bibtex.py       # Network-free BibTeX renderer
+│   ├── writeback-keys.sh   # citationKey → Zotero Cloud (PATCH, explicit)
+│   ├── enrich-books.py     # Opt-in book- enrich (danger zone)
 │   ├── gh-starred-to-bib.sh # GitHub starred → BibTeX (gh + jq)
 │   ├── run.sh              # Translation Server manager
 │   └── zotero-save-url.sh  # URL saver via Translation Server
 ├── bibcli/                 # BibTeX search CLI for AI agents (Go)
 │   ├── main.go             # CLI: search/show/list/lookup/stats
-│   ├── parser.go           # BibTeX parser (8,000 entries in 18ms)
+│   ├── parser.go           # BibTeX parser
 │   ├── search.go           # Case-insensitive multi-field AND search
-│   └── lookup.go           # data4library 서지검색 (ISBN/제목)
-│                           # (skill doc SKILL.md currently in agent-config; relocation planned)
-├── output/                 # Generated BibTeX files (symlinked from ~/org/resources/)
-│   ├── Book.bib
-│   ├── Online.bib
-│   ├── Software.bib
-│   ├── Reference.bib
-│   ├── Video.bib
-│   ├── Article.bib
-│   ├── Misc.bib
-│   └── github-starred.bib
+│   └── lookup.go           # data4library assist (ISBN/제목) — not used by sync
+├── .claude/skills/zotero-config/SKILL.md  # Operator doctrine
+├── output/                 # Generated BibTeX (symlinked from ~/org/resources/)
 ├── config/                 # BBT preferences (reference only)
 ├── plugins/                # Zotero plugin XPIs (archive)
 └── .sync/                  # Sync state (gitignored)
-    ├── items.json           # Cached Zotero items
-    ├── last-version         # API version for incremental sync
-    └── new-keys.json        # Pending citationKey writebacks
+    ├── items.json
+    ├── last-version
+    └── new-keys.json       # Pending citationKey writebacks
 ```
 
 ---
@@ -123,7 +129,7 @@ zotero-config/
 
 - `curl`, `jq`, `python3` (no pip packages needed)
 - Zotero account with API access
-- (Optional) [DATA4LIBRARY API key](https://data4library.kr/) for Korean KDC
+- (Optional) [DATA4LIBRARY API key](https://data4library.kr/) — only for `bibcli lookup` / `enrich`
 
 ### Environment
 
@@ -132,7 +138,7 @@ Create `.envrc` in the project root:
 ```bash
 export ZOTERO_API_KEY="your-key"
 export ZOTERO_USER_ID="your-user-id"
-export DATA4LIBRARY_API_KEY="your-key"  # optional, for KDC lookup
+export DATA4LIBRARY_API_KEY="your-key"  # optional; lookup/enrich only — not needed for bib sync
 export GH_STARRED_ACCOUNT="junghan0611" # optional override for ./run.sh starred
 ```
 
@@ -142,7 +148,7 @@ export GH_STARRED_ACCOUNT="junghan0611" # optional override for ./run.sh starred
 git clone https://github.com/junghan0611/zotero-config.git
 cd zotero-config
 # Create .envrc with your API keys
-./run.sh bib full    # Full sync (~90 seconds for ~6000 items)
+./run.sh bib full    # Full sync for ~6000 items
 ```
 
 ### Emacs Integration
@@ -172,15 +178,15 @@ Then configure citar:
 
 ## bibcli — BibTeX Search CLI
 
-Go CLI for AI agents to search/view the full bibliography (8,030 entries). JSON-only output, stdlib only, single static binary.
+Go CLI for AI agents to search/view the full bibliography. JSON-only output, stdlib only, single static binary.
 
 ```bash
 ./run.sh build                           # Build + install to ~/.local/bin
 bibcli search "emacs" --max 5            # Full-text search
 bibcli search "한국" --type Book          # Korean + type filter
 bibcli show "165.84-박82ㅅ"               # Full entry by citation key
-bibcli lookup 9791192300283              # ISBN → KDC, 저자, 출판사, 연도
-bibcli lookup "슈바이처" --max 3           # 제목 검색 (data4library)
+bibcli lookup 9791192300283              # ISBN → KDC candidate (assist only)
+bibcli lookup "슈바이처" --max 3           # Title search (data4library)
 bibcli stats                              # Per-file counts
 ```
 
@@ -211,5 +217,6 @@ Uses [Zotero Translation Server](https://github.com/zotero/translation-server) (
 
 ---
 
-**Author**: [@junghanacs](https://github.com/junghan0611)
-**Philosophy**: Life is a book. Everyone is an author.
+**Author**: [@junghanacs](https://github.com/junghan0611)  
+**Philosophy**: Life is a book. Everyone is an author.  
+**This repo**: the process of tending a bibliography is the point — not the titles alone.
