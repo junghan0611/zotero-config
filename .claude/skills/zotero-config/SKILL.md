@@ -105,6 +105,11 @@ bibcli show "001.3-김74ㅁ" --dir ~/org/resources
 - whitelist PATCH only (`scripts/pin-item.py`)
 - **dateAdded 절대 불변** (변경 시 실패)
 - citationKey 로컬 SSOT 중복 시 거부 (같은 항목 재핀은 허용)
+- **Zotero 컬렉션 자동 분류** (로컬 `Book.bib` 분할의 역방향):
+  - citationKey가 `0…9`로 시작하면 `Book` + `N00-…` 섹션에 넣음
+    (`001.3-김74ㅁ` → My Library → Book → **000-정보**)
+  - Unfiled Items에 안 남김. 매핑은 `pin-item.py` / `enrich-books.py` SSOT 키.
+  - 제어: `fileUnder: "800-문학"` / `collections: ["…"]` / `noCollections: true`
 - `--sync`로 pull까지 한 방에 → Emacs/citar/org 즉시
 
 ### 성스러운 필드 — `dateAdded` / `dateModified`

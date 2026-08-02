@@ -6,12 +6,19 @@ Agent-owned judgment (title/author/date/KDC key) happens *before* this tool.
 This script only:
   1. checks citationKey uniqueness against local bib SSOT
   2. PATCHes a whitelist of fields (never dateAdded)
-  3. optionally runs bib sync so Emacs/org can cite immediately
+  3. files into Zotero collections (Book → N00-… from KDC digit) so the
+     item leaves Unfiled Items — reverse of local type-split bib render
+  4. optionally runs bib sync so Emacs/org can cite immediately
 
 Usage:
   ./run.sh pin --json '{"zoteroKey":"ABCD","citationKey":"001.3-김74ㅁ","title":"…", ...}'
   ./run.sh pin --sync --json '...'
   echo '{...}' | ./run.sh pin --sync --json -
+
+Collection control (optional payload keys, not Zotero native fields):
+  collections: ["KEY", ...]   explicit collection keys (merged with auto)
+  fileUnder: "000-정보"       force section by name
+  noCollections: true         skip collection filing
 
 Exit codes:
   0 ok, 1 usage/validation, 2 duplicate key, 3 API/PATCH failure
@@ -22,6 +29,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.error
@@ -29,6 +37,34 @@ import urllib.request
 
 API = "https://api.zotero.org"
 UA = "zotero-config-pin/1.0"
+
+# My Library → Book → N00-… (SSOT keys; also in enrich-books.py)
+BOOK_COLLECTION = "MC24XQEC"
+KDC_COLLECTION_MAP = {
+    "0": "S7W5Z692",  # 000-정보
+    "1": "LS25E24L",  # 100-철학
+    "2": "J2ES338U",  # 200-영성
+    "3": "VF5GEFUJ",  # 300-사회
+    "4": "NQRCWT8U",  # 400-자연
+    "5": "6NNNFHJD",  # 500-기술
+    "6": "B3N2AXFF",  # 600-예술
+    "7": "PGQXIXD6",  # 700-언어
+    "8": "ZRD2LLTI",  # 800-문학
+    "9": "FEEZYYIH",  # 900-역사
+}
+SECTION_NAME_TO_KEY = {
+    "000-정보": "S7W5Z692",
+    "100-철학": "LS25E24L",
+    "200-영성": "J2ES338U",
+    "300-사회": "VF5GEFUJ",
+    "400-자연": "NQRCWT8U",
+    "500-기술": "6NNNFHJD",
+    "600-예술": "B3N2AXFF",
+    "700-언어": "PGQXIXD6",
+    "800-문학": "ZRD2LLTI",
+    "900-역사": "FEEZYYIH",
+    "Book": BOOK_COLLECTION,
+}
 
 # Fields agents may set. dateAdded / dateModified / key / version are NEVER accepted.
 ALLOWED = frozenset(
@@ -54,10 +90,66 @@ ALLOWED = frozenset(
         "extra",
         "rights",
         "tags",
+        "collections",
     }
 )
 
+# Control keys stripped before PATCH (not sent as Zotero fields as-is without merge)
+CONTROL_KEYS = frozenset({"zoteroKey", "citationKey", "fileUnder", "noCollections"})
+
 REQUIRED = ("zoteroKey", "citationKey")
+
+
+def collections_for_citation_key(citation_key: str) -> list[str]:
+    """Book + KDC hundred-section from leading digit of citationKey."""
+    m = re.match(r"^([0-9])", citation_key.strip())
+    if not m:
+        return []
+    section = KDC_COLLECTION_MAP.get(m.group(1))
+    if not section:
+        return []
+    return [BOOK_COLLECTION, section]
+
+
+def resolve_collections(payload: dict, citation_key: str, existing: list) -> list[str] | None:
+    """Merge existing + auto KDC + explicit. None = do not PATCH collections."""
+    if payload.get("noCollections") is True:
+        return None
+
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def add(keys):
+        for k in keys or []:
+            if not k or k in seen:
+                continue
+            seen.add(k)
+            out.append(k)
+
+    add(existing)
+
+    file_under = payload.get("fileUnder")
+    if file_under:
+        key = SECTION_NAME_TO_KEY.get(str(file_under))
+        if not key:
+            die(1, f"unknown fileUnder section: {file_under}")
+        add([BOOK_COLLECTION, key] if key != BOOK_COLLECTION else [BOOK_COLLECTION])
+    else:
+        add(collections_for_citation_key(citation_key))
+
+    explicit = payload.get("collections")
+    if explicit is not None:
+        if not isinstance(explicit, list):
+            die(1, "collections must be a list of collection keys")
+        add(explicit)
+
+    # If nothing to add beyond what we already had and no explicit intent, still
+    # return out when auto/fileUnder produced membership (may equal existing).
+    if not out and explicit is None and not file_under and not collections_for_citation_key(
+        citation_key
+    ):
+        return None
+    return out
 
 
 def die(code: int, msg: str) -> None:
@@ -203,14 +295,6 @@ def main() -> None:
         if not owned:
             die(2, f"citationKey already in SSOT: {citation_key}")
 
-    patch = {"citationKey": citation_key}
-    for k, v in payload.items():
-        if k in ("zoteroKey", "citationKey"):
-            continue
-        if k not in ALLOWED:
-            die(1, f"field not allowed: {k}")
-        patch[k] = v
-
     try:
         cur = zotero_get(api_key, user_id, zotero_key)
     except Exception as e:
@@ -219,6 +303,19 @@ def main() -> None:
     version = cur.get("version")
     before = cur.get("data", {})
     date_added = before.get("dateAdded")
+    existing_cols = list(before.get("collections") or [])
+
+    patch: dict = {"citationKey": citation_key}
+    for k, v in payload.items():
+        if k in CONTROL_KEYS or k == "collections":
+            continue
+        if k not in ALLOWED:
+            die(1, f"field not allowed: {k}")
+        patch[k] = v
+
+    resolved_cols = resolve_collections(payload, citation_key, existing_cols)
+    if resolved_cols is not None:
+        patch["collections"] = resolved_cols
 
     status = zotero_patch(api_key, user_id, zotero_key, version, patch)
     if status not in (200, 204):
@@ -238,6 +335,7 @@ def main() -> None:
         "title": after.get("title"),
         "dateAdded": after.get("dateAdded"),
         "dateModified": after.get("dateModified"),
+        "collections": after.get("collections") or [],
         "patched": sorted(patch.keys()),
         "synced": False,
     }
