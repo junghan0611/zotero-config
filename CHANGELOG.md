@@ -9,12 +9,16 @@ All notable changes, tracked by CalVer date tags.
 - Added `./run.sh pin --sync` (`scripts/pin-item.py`): whitelist PATCH for
   agent-styled fields + unique `citationKey`, preserves `dateAdded`, optional
   immediate `bib sync` so org/Emacs can cite in the same session.
+- **Zotero collection filing on pin:** KDC leading digit → `Book` + `N00-…`
+  (e.g. `001.3-…` → 000-정보), so items leave Unfiled Items — reverse of local
+  type-split bib render. Optional `fileUnder` / `collections` / `noCollections`.
 - Documented URL→citeable-key one-shot in operator skill + global bibcli skill
   (no deferred keying; agent owns KDC-sense judgment).
 
 ### Bibliography
 
-- Styled and pinned 김정운 『말하지 않고 말하기』 as `001.3-김74ㅁ`.
+- Styled, pinned, and filed 김정운 『말하지 않고 말하기』 as `001.3-김74ㅁ`
+  under My Library → Book → 000-정보.
 
 ## v2026.8.2-books.1 — book ritual off the sync path
 
