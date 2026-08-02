@@ -64,6 +64,40 @@ SECTION_NAME_TO_KEY = {
     "800-문학": "ZRD2LLTI",
     "900-역사": "FEEZYYIH",
     "Book": BOOK_COLLECTION,
+    # Category leaves (dominant filing pattern in this library)
+    "@Web": "BD6TWS5S",
+    "BlogPost": "RVJ9H9MG",
+    "Video": "QZMJ3EUK",
+    "Film": "8KCWR24J",
+    "Software": "MA243JTT",
+    "Wikipedia": "RG9K9W3P",
+    "Forum": "3QZ6RB4C",
+    "Document": "N7QB2MR7",
+    "Dictionary": "2JTYWDNZ",
+    "Person": "VW2MYDKR",
+    "Presentation": "P5DHRJFU",
+    "Dataset": "HIFXUXZB",
+    "Image": "KIHRLPNM",
+    "Music": "687F5APW",
+    "Programming": "KH75T2UA",
+}
+
+# Zotero itemType → default Category leaf (non-book). Mirrors local *.bib split.
+ITEM_TYPE_COLLECTION = {
+    "webpage": "BD6TWS5S",  # @Web
+    "blogPost": "RVJ9H9MG",  # BlogPost
+    "videoRecording": "QZMJ3EUK",  # Video
+    "tvBroadcast": "QZMJ3EUK",
+    "film": "8KCWR24J",  # Film
+    "computerProgram": "MA243JTT",  # Software
+    "encyclopediaArticle": "RG9K9W3P",  # Wikipedia
+    "dictionaryEntry": "2JTYWDNZ",
+    "forumPost": "3QZ6RB4C",
+    "document": "N7QB2MR7",
+    "presentation": "P5DHRJFU",
+    "interview": "VW2MYDKR",  # Person-ish
+    "artwork": "KIHRLPNM",
+    "audioRecording": "687F5APW",
 }
 
 # Fields agents may set. dateAdded / dateModified / key / version are NEVER accepted.
@@ -111,8 +145,19 @@ def collections_for_citation_key(citation_key: str) -> list[str]:
     return [BOOK_COLLECTION, section]
 
 
-def resolve_collections(payload: dict, citation_key: str, existing: list) -> list[str] | None:
-    """Merge existing + auto KDC + explicit. None = do not PATCH collections."""
+def collections_for_item_type(item_type: str) -> list[str]:
+    """Category leaf from Zotero itemType (webpage→@Web, video→Video, …)."""
+    key = ITEM_TYPE_COLLECTION.get(item_type or "")
+    return [key] if key else []
+
+
+def resolve_collections(
+    payload: dict, citation_key: str, existing: list, item_type: str = ""
+) -> list[str] | None:
+    """Merge existing + auto (KDC book or itemType category) + explicit.
+
+    None = do not PATCH collections.
+    """
     if payload.get("noCollections") is True:
         return None
 
@@ -129,13 +174,23 @@ def resolve_collections(payload: dict, citation_key: str, existing: list) -> lis
     add(existing)
 
     file_under = payload.get("fileUnder")
+    auto: list[str] = []
     if file_under:
         key = SECTION_NAME_TO_KEY.get(str(file_under))
         if not key:
             die(1, f"unknown fileUnder section: {file_under}")
-        add([BOOK_COLLECTION, key] if key != BOOK_COLLECTION else [BOOK_COLLECTION])
+        # Book sections need Book parent; Category leaves stand alone.
+        if key in KDC_COLLECTION_MAP.values() or key == BOOK_COLLECTION:
+            auto = [BOOK_COLLECTION, key] if key != BOOK_COLLECTION else [BOOK_COLLECTION]
+        else:
+            auto = [key]
+        add(auto)
     else:
-        add(collections_for_citation_key(citation_key))
+        # Prefer KDC book filing when citationKey looks like decimal class.
+        auto = collections_for_citation_key(citation_key)
+        if not auto:
+            auto = collections_for_item_type(item_type)
+        add(auto)
 
     explicit = payload.get("collections")
     if explicit is not None:
@@ -143,11 +198,7 @@ def resolve_collections(payload: dict, citation_key: str, existing: list) -> lis
             die(1, "collections must be a list of collection keys")
         add(explicit)
 
-    # If nothing to add beyond what we already had and no explicit intent, still
-    # return out when auto/fileUnder produced membership (may equal existing).
-    if not out and explicit is None and not file_under and not collections_for_citation_key(
-        citation_key
-    ):
+    if not out and explicit is None and not file_under and not auto:
         return None
     return out
 
@@ -313,7 +364,10 @@ def main() -> None:
             die(1, f"field not allowed: {k}")
         patch[k] = v
 
-    resolved_cols = resolve_collections(payload, citation_key, existing_cols)
+    item_type = str(before.get("itemType") or "")
+    resolved_cols = resolve_collections(
+        payload, citation_key, existing_cols, item_type=item_type
+    )
     if resolved_cols is not None:
         patch["collections"] = resolved_cols
 

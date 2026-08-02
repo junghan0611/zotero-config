@@ -43,7 +43,7 @@ org notes     = 읽기·해석·인용 소비 층  (#+reference: / #+print_bibli
 | 갈래 | 무엇인가 | 태도 | 에이전트 |
 |---|---|---|---|
 | **Book** | 십진분류(KDC 감각)·저자·역자·citation key를 가꾼 장서 | 신중히, 그러나 **한 세션에 키까지 확정** | sync 중 KDC API 금지. 에이전트가 스타일+KDC 판단 후 `pin --sync`. 대량 자동·dateAdded 위험 금지 |
-| **Online / Video / Software / …** | 유튜브·블로그·웹·레포 캡처 | 담는 대로 pull | `save --sync --json` 또는 외부 캡처 후 `bib sync` |
+| **Online / Video / Software / …** | 유튜브·블로그·웹·레포 캡처 | 한 세션에 키+분류 | `save --json` → 가벼운 스타일·키 → `pin --sync` (Category 자동). 폰 캡처만 된 것은 `bib sync` |
 
 코드는 얇게. 판단·수선 절차는 스킬(이 문서 + **전역 bibcli 스킬**)에.
 
@@ -105,12 +105,14 @@ bibcli show "001.3-김74ㅁ" --dir ~/org/resources
 - whitelist PATCH only (`scripts/pin-item.py`)
 - **dateAdded 절대 불변** (변경 시 실패)
 - citationKey 로컬 SSOT 중복 시 거부 (같은 항목 재핀은 허용)
-- **Zotero 컬렉션 자동 분류** (로컬 `Book.bib` 분할의 역방향):
-  - citationKey가 `0…9`로 시작하면 `Book` + `N00-…` 섹션에 넣음
-    (`001.3-김74ㅁ` → My Library → Book → **000-정보**)
-  - Unfiled Items에 안 남김. 매핑은 `pin-item.py` / `enrich-books.py` SSOT 키.
-  - 제어: `fileUnder: "800-문학"` / `collections: ["…"]` / `noCollections: true`
+- **Zotero 컬렉션 자동 분류** (로컬 type-split bib의 역방향, Unfiled 탈출):
+  - 책: citationKey `0…9` 시작 → `Book` + `N00-…` (`001.3-…` → **000-정보**)
+  - 비책: itemType → Category 리프 (`videoRecording`→Video, `blogPost`→BlogPost,
+    `webpage`→@Web, `computerProgram`→Software, `encyclopediaArticle`→Wikipedia …)
+  - 매핑 SSOT: `scripts/pin-item.py` (Book 섹션 키는 enrich-books와 동일)
+  - 제어: `fileUnder: "Video"` / `collections: ["…"]` / `noCollections: true`
 - `--sync`로 pull까지 한 방에 → Emacs/citar/org 즉시
+- **일상 입수 스킬은 bibcli** (유튜브·책·블로그 URL 원샷). 이 문서는 리포/경계 SSOT.
 
 ### 성스러운 필드 — `dateAdded` / `dateModified`
 
