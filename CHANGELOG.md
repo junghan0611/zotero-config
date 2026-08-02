@@ -9,11 +9,13 @@ All notable changes, tracked by CalVer date tags.
 - Added `./run.sh pin --sync` (`scripts/pin-item.py`): whitelist PATCH for
   agent-styled fields + unique `citationKey`, preserves `dateAdded`, optional
   immediate `bib sync` so org/Emacs can cite in the same session.
-- **Zotero collection filing on pin:** KDC leading digit → `Book` + `N00-…`
-  (e.g. `001.3-…` → 000-정보), so items leave Unfiled Items — reverse of local
-  type-split bib render. Optional `fileUnder` / `collections` / `noCollections`.
-- Documented URL→citeable-key one-shot in operator skill + global bibcli skill
-  (no deferred keying; agent owns KDC-sense judgment).
+- **Zotero collection filing on pin:** leaves Unfiled Items — reverse of local
+  type-split bib render.
+  - Book: KDC leading digit → `Book` + `N00-…` (`001.3-…` → 000-정보)
+  - Non-book: itemType → Category leaf (Video, BlogPost, @Web, Software, …)
+  - Optional `fileUnder` / `collections` / `noCollections`
+- Global **bibcli skill** is the org-agent handbook for any URL (YouTube, book,
+  blog, web): save → style/key → `pin --sync` → cite in one session.
 
 ### Bibliography
 
