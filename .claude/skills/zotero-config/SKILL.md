@@ -1,6 +1,6 @@
 ---
 name: zotero-config
-description: "zotero-config 오퍼레이터 면 — Zotero Cloud는 캡처 금고, 로컬 BibTeX(~/org/resources)가 메타 서지 SSOT. 폰/브라우저로 담은 유튜브·블로그·웹을 에이전트가 읽으려면 먼저 bib sync. 책은 yes24→Connector→손질→도서관 감각의 KDC 키까지 사람 의식; dateAdded/dateModified는 성스러움. 웹·영상은 담는 대로 pull. sync 본선은 네트워크 없는 렌더. BBT/GUI/MCP 없음. 코드는 얇게, 디테일은 이 스킬과 bibcli. 트리거: 'zotero-config', 'bib sync', 'bibcli', '서지', 'citation key', 'Zotero 담았어', '방금 저장', 'citar', 'Book.bib', 'writeback', 'KDC', '십진분류', 'translation server'."
+description: "zotero-config 오퍼레이터 면 — Zotero Cloud 캡처 금고, 로컬 BibTeX SSOT. URL 한 장이면 save→에이전트 스타일·KDC 키 판단→pin --sync 로 같은 세션에 인용 가능 키 확정(시점 분리 금지). dateAdded 성스러움. sync 렌더는 네트워크 없음. org 에이전트 일상은 bibcli 스킬. 트리거: zotero-config, bib sync, save, pin, citation key, KDC, yes24, 담아줘, Book.bib, writeback, translation server."
 user_invocable: true
 ---
 
@@ -24,8 +24,8 @@ org notes     = 읽기·해석·인용 소비 층  (#+reference: / #+print_bibli
 - YouTube 별표 목록, 브라우저 북마크, 임의 스크랩 API는 **경계를 넘는 일** —
   bibcli/이 리포의 일이 아니다. 가치 있는 것만 Zotero에 담기고, 담긴 것만 pull한다.
 - Zotero에 역할을 더 얹을수록 손 수정이 는다. **BBT·GUI 플러그인·citation-key
-  플러그인은 제거된 상태**가 정답이다. 키 생성 폴백은 `gen-bibtex.py` 한곳
-  (네트워크 없음). 책 KDC 키는 **사람이 Zotero에 심는다**.
+  플러그인은 제거된 상태**가 정답이다. sync 렌더 폴백은 `gen-bibtex.py`(네트워크 없음).
+  책 KDC 키는 **에이전트/사람의 판단**으로 `pin` 할 때 심는다 — data4library 필수가 아니다.
 
 ### 이 리포의 정체성
 
@@ -42,32 +42,70 @@ org notes     = 읽기·해석·인용 소비 층  (#+reference: / #+print_bibli
 
 | 갈래 | 무엇인가 | 태도 | 에이전트 |
 |---|---|---|---|
-| **Book** | 십진분류(KDC 감각)·저자·역자·citation key를 수년 단위로 가꾼 유니크 장서 | 매일 안 넣음. 손 큐레이션 의식 | 자동 대량 생성·함부로 writeback·sync 중 KDC API **금지**. `bibcli lookup`/data4library는 **후보 보조**. 사람이 확정 |
-| **Online / Video / Software / …** | 유튜브·블로그·웹·레포 등 흘러드는 캡처 | 담는 대로 가져오면 되는 편리 저장소 | 폰/브라우저 캡처 언급 시 **먼저 `bib sync`**, 그다음 bibcli |
+| **Book** | 십진분류(KDC 감각)·저자·역자·citation key를 가꾼 장서 | 신중히, 그러나 **한 세션에 키까지 확정** | sync 중 KDC API 금지. 에이전트가 스타일+KDC 판단 후 `pin --sync`. 대량 자동·dateAdded 위험 금지 |
+| **Online / Video / Software / …** | 유튜브·블로그·웹·레포 캡처 | 담는 대로 pull | `save --sync --json` 또는 외부 캡처 후 `bib sync` |
 
-코드 레벨은 얇고 견고하게. 디테일·예외·수선 절차는 스킬(이 문서 + bibcli)에 둔다.
+코드는 얇게. 판단·수선 절차는 스킬(이 문서 + **전역 bibcli 스킬**)에.
 
-## 1b. 책 유입 의식 (사람 손 — 코드가 대체하지 않음)
+## 1b. URL → 인용 가능 키 (한 세션 — 시점 분리 금지)
 
-GLG가 책을 메타서지에 넣는 실제 절차. 에이전트는 이 의식을 **자동화로 대체하지
-말고**, 보조·리마인드·후보 제시만 한다.
+org 담당 에이전트가 “서지 없다”고 멈추지 않게 하는 **기본 레일**.
+담기만 하고 키를 다음으로 미루지 않는다. `book-…` 폴백을 최종 키로 남기지 않는다.
 
-1. **찾기** — 주로 yes24.com 등 웹에서 책을 찾는다.
-2. **캡처** — Firefox Zotero Connector로 Zotero Cloud 금고에 담는다.  
-   이 시점의 항목은 아직 “내 스타일”이 아니다.
-3. **손질 (Zotero에서)** — title, author, translator, date, shorttitle, abstract.  
-   커넥터가 채운 값은 대략일 뿐; **내 스타일로** 고친다.
-4. **citation key (십진분류 감각)**  
-   - 주로 [수원시도서관 모바일](https://mob.suwonlib.go.kr/) 등에서 책 이름으로
-     검색해 청구기호/분류를 **대략** 확인한다.
-   - 완벽한 KDC 전문가 절차를 고집하지 않는다.
-   - 바라는 것은 메타서지에 **분류 축 하나**를 더 심는 것.
-   - 형식 예: `843.5-조68ㅍ2` (`@book{843.5-조68ㅍ2, ...}`).
-5. **보조 (원할 때만)** — 에이전트 또는 `bibcli lookup <isbn|제목>`이
-   data4library 후보를 보여 준다 → **사람이 키를 Zotero에 기입**.
-6. **pull** — `./run.sh bib sync` → 로컬 `Book.bib` / `~/org/resources/`.
-7. **writeback** — “Cloud 항목에 키를 핀하고 싶다”고 **명시할 때만**.  
-   루틴 sync의 부작용으로 돌리지 않는다.
+```text
+[1] save     Translation Server → Zotero Cloud (날것)
+[2] style    에이전트 판단: title/author/translator/date/shorttitle/abstract/ISBN…
+[3] classify 에이전트 판단: KDC 감각 citationKey (API 필수 아님)
+             중복 검사: bibcli show KEY 가 없어야 함
+[4] pin      ./run.sh pin --sync --json '{zoteroKey, citationKey, …}'
+[5] cite     org 노트에 #+reference: KEY 즉시
+```
+
+```bash
+cd ~/repos/gh/zotero-config
+./run.sh server status || ./run.sh server start
+./run.sh save --json "URL"
+# → saved[].zoteroKey  (citationKey 는 아직 폴백/없음일 수 있음)
+
+# 에이전트가 스타일 + 유일 키 결정 후:
+./run.sh pin --sync --json '{
+  "zoteroKey": "…",
+  "citationKey": "001.3-김74ㅁ",
+  "title": "말하지 않고 말하기",
+  "creators": [{"creatorType":"author","name":"김정운"}],
+  "date": "2026-05-11",
+  "publisher": "21세기북스",
+  "ISBN": "9791173579721",
+  "language": "ko",
+  "abstractNote": "…",
+  "url": "URL"
+}'
+# → { citationKey, synced:true }  dateAdded 불변 검증 포함
+bibcli show "001.3-김74ㅁ" --dir ~/org/resources
+```
+
+### 스타일 규칙 (yes24 등)
+
+- title: `제목 | 저자 | 출판사 - 예스24` → **제목만**
+- creators: `lastName=저, firstName=김정운` → `{"name":"김정운"}` (역자는 translator)
+- date / ISBN / publisher: 페이지·메타에서 채움 (비어 있으면 에이전트가 회수)
+- abstract: 군더더기 정리, 내 문체로 짧게
+- citationKey: 기존 장서 패턴 참고 (`bibcli search` 동저자/동주제).
+  형식 `분류-저자기호` 예: `001.3-김74ㅁ`, `843.5-조68ㅍ2`.
+  **완벽한 KDC 불필요** — 분류 축 하나 + **SSOT 유일**이 핵심.
+- `bibcli lookup`은 선택 보조. 타임아웃·실패해도 에이전트 판단으로 진행.
+
+### 사람 손 경로 (여전함)
+
+브라우저 Connector로 담은 뒤 Zotero GUI에서 손질해도 된다.
+에이전트 레일은 **대체 레일** — org 작업 중 URL만 있을 때 특히.
+
+### pin 계약
+
+- whitelist PATCH only (`scripts/pin-item.py`)
+- **dateAdded 절대 불변** (변경 시 실패)
+- citationKey 로컬 SSOT 중복 시 거부 (같은 항목 재핀은 허용)
+- `--sync`로 pull까지 한 방에 → Emacs/citar/org 즉시
 
 ### 성스러운 필드 — `dateAdded` / `dateModified`
 
@@ -79,18 +117,19 @@ GLG가 책을 메타서지에 넣는 실제 절차. 에이전트는 이 의식�
 - 에이전트 금지: dateAdded/dateModified를 잃을 수 있는 일괄 수정,
   “편하자”는 책 메타 자동 재작성, 검증 없는 Cloud mutation.
 
-### sync 본선과 KDC
+### sync 본선과 키
 
 ```text
 bib sync / gen-bibtex.py  = 네트워크 없는 렌더
   · 기존 citationKey → 그대로
-  · 없음 → book-/web-… 로컬 폴백만
-bibcli lookup             = 원할 때 KDC/서지 후보 (data4library)
-./run.sh enrich           = 명시적·위험 구역 (book- 보강; 함부로 금지)
-./run.sh bib writeback    = 명시적 키 핀 only
+  · 없음 → book-/web-… 로컬 폴백만 (최종 키 아님)
+./run.sh pin --sync       = 스타일+키 확정 (에이전트 판단 후)
+bibcli lookup             = 선택 후보 (data4library)
+./run.sh enrich           = 레거시 위험 구역 — 기본 경로 아님
+./run.sh bib writeback    = new-keys.json 일괄 핀 (레거시; pin 선호)
 ```
 
-**금지:** sync가 data4library에 의존해 멈추거나,  thrashing으로 키를 바꿔 쓰기.
+**금지:** sync가 data4library에 의존. **금지:** 담기만 하고 키 확정을 다음 세션으로 미루기.
 
 ## 2. 핵심 반사신경 — 캡처 뒤 sync (묻지 마라)
 
@@ -136,15 +175,13 @@ bibcli search "youtube.com/watch?v=…" --dir ~/org/resources --max 5
 
 | 동작 | Cloud | 언제 |
 |------|-------|------|
-| `bib sync` / `bib full` | 읽기만 | 일상 pull. 기본 반사. **KDC API 없음** |
-| `save` / Connector | 항목 생성 | URL 유입 유일한 일상 쓰기 경로 |
-| `bibcli lookup` | 없음 | KDC/서지 **후보**. 쓰는 손 아님 |
-| `./run.sh enrich` | PATCH 가능 | **명시 요청만**. dateAdded 위험 구역. 기본 제안 금지 |
-| `bib writeback` | citationKey PATCH | **명시 요청만**. 책 키 핀 등. 루틴 sync 부작용 금지 |
-| `.bib` 손편집 | — | **금지**. 다음 full에 덮임. 수선은 Zotero 항목 수정 후 sync |
-
-책 키·메타 수선: **Zotero에서 사람이 고치고** sync.  
-에이전트는 후보·체크리스트·diff 확인. 확정 기입은 사람(또는 명시 위임).
+| `bib sync` / `bib full` | 읽기만 | 일상 pull. **KDC API 없음** |
+| `save` / Connector | 항목 생성 | URL 캡처 |
+| `pin --sync` | whitelist PATCH | 스타일+citationKey 확정. dateAdded 불변. org 원샷 |
+| `bibcli lookup` | 없음 | 선택 후보 |
+| `./run.sh enrich` | PATCH | 레거시 위험 — 기본 금지 |
+| `bib writeback` | citationKey only | 레거시 일괄; 단건은 `pin` |
+| `.bib` 손편집 | — | **금지** |
 
 ## 5. 경계 밖 (하지 마라)
 
@@ -173,14 +210,14 @@ bibcli search "youtube.com/watch?v=…" --dir ~/org/resources --max 5
 ```bash
 cd ~/repos/gh/zotero-config
 ./run.sh bib sync              # 일상 pull (read-only, network-free render)
-./run.sh bib status            # last-version / 상태
-./run.sh bib full              # 삭제 반영 포함 재빌드
-./run.sh save --sync --json URL
+./run.sh bib status
+./run.sh bib full
 ./run.sh server status || ./run.sh server start
-./run.sh build                 # bibcli 바이너리
-bibcli lookup ISBN|제목        # KDC 후보 only (DATA4LIBRARY_API_KEY)
-./run.sh bib writeback         # 명시적 키 핀 only
-./run.sh enrich …              # 명시적·위험 — 기본 경로 아님
+./run.sh save --json URL       # 캡처 (날것)
+./run.sh pin --sync --json '…' # 스타일+키 확정 + SSOT 반영
+./run.sh save --sync --json URL  # 웹/영상 등 폴백 키로 충분한 경우
+./run.sh build
+bibcli lookup ISBN|제목          # 선택 보조
 ```
 
 환경: `.envrc` — `ZOTERO_API_KEY`, `ZOTERO_USER_ID`,  

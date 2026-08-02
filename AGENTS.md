@@ -74,10 +74,11 @@ instruction. `bib sync` is read-only against Cloud.
 
 | Script | Purpose |
 |--------|---------|
-| `run.sh` | Main entry point (`bib`, `starred`, `save`, `server`, `build`, `enrich`) |
+| `run.sh` | Main entry point (`bib`, `starred`, `save`, `pin`, `server`, `build`, `enrich`) |
 | `scripts/zotero-to-bib.sh` | Zotero API fetcher (pagination, incremental sync, merge) |
 | `scripts/gen-bibtex.py` | Network-free BibTeX renderer (keep keys / local fallback / type split) |
-| `scripts/writeback-keys.sh` | citationKey writeback to Zotero Cloud (PATCH, explicit) |
+| `scripts/pin-item.py` | Agent-styled fields + citationKey whitelist PATCH; optional `--sync` |
+| `scripts/writeback-keys.sh` | Batch citationKey writeback (legacy; prefer `pin` for singles) |
 | `scripts/enrich-books.py` | Opt-in `book-` enrich via data4library — **danger zone**, explicit only |
 | `scripts/gh-starred-to-bib.sh` | GitHub starred repos → BibTeX (gh + jq) |
 | `scripts/run.sh` | Translation Server lifecycle management |
@@ -113,15 +114,20 @@ Type-based BibTeX files, symlinked from `~/org/resources/`:
 ## Quick Reference
 
 ```bash
-./run.sh bib sync       # Incremental sync (Zotero Cloud → output/*.bib → ~/org/resources/) — read-only, network-free render
-./run.sh bib full       # Full rebuild (also drops items deleted on Zotero Cloud) — read-only
-./run.sh bib writeback  # Explicit: pin generated citation keys onto Zotero Cloud (mutates)
-./run.sh bib status     # Sync state
-./run.sh server start   # Translation Server (localhost:1969)
-./run.sh save --sync --json <url>   # Save URL → sync → return resolved citation key
-./run.sh build          # Build bibcli
-bibcli lookup <isbn|title>          # KDC/서지 후보 only
+./run.sh bib sync       # Incremental sync — read-only, network-free render
+./run.sh bib full       # Full rebuild — read-only
+./run.sh bib status
+./run.sh server start
+./run.sh save --json <url>          # Capture raw item → zoteroKey
+./run.sh pin --sync --json '{...}'  # Style + unique citationKey + sync (org one-shot)
+./run.sh save --sync --json <url>   # Web/video when fallback key is enough
+./run.sh build
+bibcli lookup <isbn|title>          # optional assist only
 ```
+
+**Org agents:** URL in hand → finish key in the **same session** (`save` → style/KDC
+judgment → `pin --sync`). Do not report “not in bibliography” and stop. See
+bibcli skill §2 and this repo skill §1b.
 
 ## Agent Workflow
 
@@ -159,10 +165,10 @@ extra step. Preferred flow: `save --sync --json` → take `resolved[].citationKe
 
 ### Books
 
-Do not invent book automation. Read §1b in the operator skill. If asked to help
-with a book key: `bibcli lookup` for candidates, then stop for human confirmation
-in Zotero. Never run `enrich` or `writeback` unless GLG explicitly asks in the
-current session.
+Read skill §1b. Agent **judges** style + approximate KDC key (unique in SSOT),
+then `./run.sh pin --sync`. `lookup` is optional. Never leave `book-…` as the
+final key when citing from org. Never run `enrich` unless explicitly asked.
+Never touch `dateAdded`.
 
 ## Delegates / coding agents
 

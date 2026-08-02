@@ -80,6 +80,12 @@ case "${1:-}" in
         shift
         exec "$SCRIPT_DIR/scripts/zotero-save-url.sh" "$@"
         ;;
+    pin)
+        # Agent-judged style + citationKey → Zotero PATCH (whitelist).
+        # Never touches dateAdded. Use after save; prefer --sync so org can cite now.
+        shift
+        exec python3 "$SCRIPT_DIR/scripts/pin-item.py" --repo-dir "$SCRIPT_DIR" "$@"
+        ;;
     starred)
         shift
         "$SCRIPT_DIR/scripts/gh-starred-to-bib.sh" "$@"
@@ -135,6 +141,10 @@ Commands:
                              URL을 Zotero에 저장
                              --sync: bib sync + citation key 복구
                              --json: 기계가 읽기 쉬운 JSON 출력
+  pin [--sync] --json '{...}|-'
+                             스타일 필드 + citationKey를 Cloud에 PATCH
+                             (에이전트 판단 후; dateAdded 불변; 키 중복 검사)
+                             --sync: PATCH 후 bib sync → org SSOT 즉시 반영
   server start|stop|status   Translation Server 관리
   build [dir]                bibcli 빌드 + 설치 (default: ~/.local/bin)
 
@@ -146,6 +156,7 @@ Examples:
   $(basename "$0") sanitize                # output/*.bib 후처리
   $(basename "$0") save "https://arxiv.org/abs/2103.00020"
   $(basename "$0") save --sync --json "https://en.wikipedia.org/wiki/Vannevar_Bush"
+  $(basename "$0") pin --sync --json '{"zoteroKey":"ABCD","citationKey":"001.3-김74ㅁ","title":"…"}'
 EOF
         ;;
     *)
