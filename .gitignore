@@ -65,3 +65,8 @@ workspace/translation-server
 # Python cache
 __pycache__/
 output/.auctex-auto/
+
+# bibcli build artifacts (source in bibcli/*.go; runtime binary lives in agent-config skill)
+bibcli/bibcli
+bibcli/bibcli-arm64
+bibcli/bibcli-*
