@@ -1,0 +1,178 @@
+[
+  {
+    "key": "AAAA1111",
+    "data": {
+      "key": "AAAA1111",
+      "itemType": "book",
+      "citationKey": "001.3-김74ㅁ",
+      "title": "말하지 않고 말하기",
+      "creators": [{"creatorType": "author", "name": "김정운"}],
+      "date": "2026-05-11",
+      "publisher": "21세기북스",
+      "ISBN": "9791173579721",
+      "language": "ko",
+      "dateAdded": "2026-05-12T01:02:03Z",
+      "dateModified": "2026-06-01T04:05:06Z"
+    }
+  },
+  {
+    "key": "BBBB2222",
+    "data": {
+      "key": "BBBB2222",
+      "itemType": "book",
+      "citationKey": "843.5-조68ㅍ2",
+      "title": "픽션들",
+      "creators": [
+        {"creatorType": "author", "name": "조르헤 루이스 보르헤스"},
+        {"creatorType": "translator", "name": "송병선"}
+      ],
+      "date": "2011",
+      "publisher": "민음사",
+      "dateAdded": "2024-01-02T00:00:00Z",
+      "dateModified": "2024-01-03T00:00:00Z"
+    }
+  },
+  {
+    "key": "CCCC3333",
+    "data": {
+      "key": "CCCC3333",
+      "itemType": "book",
+      "title": "Deterministic Rendering | Some Author | Pub - 예스24",
+      "creators": [{"creatorType": "author", "lastName": "Author", "firstName": "Some"}],
+      "date": "2020-03-04",
+      "dateAdded": "2020-03-05T00:00:00Z",
+      "dateModified": "2020-03-06T00:00:00Z"
+    }
+  },
+  {
+    "key": "DDDD4444",
+    "data": {
+      "key": "DDDD4444",
+      "itemType": "book",
+      "title": "Deterministic Rendering",
+      "creators": [{"creatorType": "author", "lastName": "Author", "firstName": "Some"}],
+      "date": "2020",
+      "dateAdded": "2020-04-05T00:00:00Z",
+      "dateModified": "2020-04-06T00:00:00Z"
+    }
+  },
+  {
+    "key": "EEEE5555",
+    "data": {
+      "key": "EEEE5555",
+      "itemType": "book",
+      "title": "Deterministic Rendering",
+      "creators": [{"creatorType": "author", "lastName": "Author", "firstName": "Some"}],
+      "date": "2020-12-31",
+      "dateAdded": "2020-12-31T00:00:00Z",
+      "dateModified": "2021-01-01T00:00:00Z"
+    }
+  },
+  {
+    "key": "FFFF6666",
+    "data": {
+      "key": "FFFF6666",
+      "itemType": "blogPost",
+      "title": "On Stable Sorting",
+      "creators": [{"creatorType": "author", "lastName": "Knuth", "firstName": "Donald"}],
+      "date": "2019-07-08",
+      "url": "https://example.org/stable-sorting",
+      "accessDate": "2019-07-09T10:11:12Z",
+      "tags": [{"tag": "sorting"}, {"tag": "determinism"}],
+      "dateAdded": "2019-07-09T00:00:00Z",
+      "dateModified": "2019-07-10T00:00:00Z"
+    }
+  },
+  {
+    "key": "GGGG7777",
+    "data": {
+      "key": "GGGG7777",
+      "itemType": "webpage",
+      "citationKey": "web-ZoteroApi",
+      "title": "Zotero Web API",
+      "url": "https://www.zotero.org/support/dev/web_api/v3/start",
+      "dateAdded": "2023-02-03T00:00:00Z",
+      "dateModified": "2023-02-04T00:00:00Z"
+    }
+  },
+  {
+    "key": "HHHH8888",
+    "data": {
+      "key": "HHHH8888",
+      "itemType": "videoRecording",
+      "title": "A Talk About Bibliographies",
+      "creators": [{"creatorType": "author", "name": "어떤 발표자"}],
+      "date": "2022-09-10",
+      "url": "https://www.youtube.com/watch?v=abcdefghijk",
+      "dateAdded": "2022-09-11T00:00:00Z",
+      "dateModified": "2022-09-12T00:00:00Z"
+    }
+  },
+  {
+    "key": "IIII9999",
+    "data": {
+      "key": "IIII9999",
+      "itemType": "computerProgram",
+      "title": "junghan0611/zotero-config",
+      "creators": [{"creatorType": "author", "name": "junghan0611"}],
+      "date": "2026-01-01",
+      "url": "https://github.com/junghan0611/zotero-config",
+      "dateAdded": "2026-01-02T00:00:00Z",
+      "dateModified": "2026-01-03T00:00:00Z"
+    }
+  },
+  {
+    "key": "JJJJ0000",
+    "data": {
+      "key": "JJJJ0000",
+      "itemType": "encyclopediaArticle",
+      "title": "Bibliography",
+      "url": "https://en.wikipedia.org/wiki/Bibliography",
+      "dateAdded": "2021-05-06T00:00:00Z",
+      "dateModified": "2021-05-07T00:00:00Z"
+    }
+  },
+  {
+    "key": "KKKK1010",
+    "data": {
+      "key": "KKKK1010",
+      "itemType": "journalArticle",
+      "title": "Reproducible Builds",
+      "creators": [{"creatorType": "author", "lastName": "Lamb", "firstName": "Chris"}],
+      "date": "2021-11-12",
+      "DOI": "10.1000/example",
+      "dateAdded": "2021-11-13T00:00:00Z",
+      "dateModified": "2021-11-14T00:00:00Z"
+    }
+  },
+  {
+    "key": "LLLL1111",
+    "data": {
+      "key": "LLLL1111",
+      "itemType": "thesis",
+      "title": "A Thesis That Lands In Misc",
+      "creators": [{"creatorType": "author", "lastName": "Doe", "firstName": "Jane"}],
+      "date": "2018",
+      "dateAdded": "2018-01-01T00:00:00Z",
+      "dateModified": "2018-01-02T00:00:00Z"
+    }
+  },
+  {
+    "key": "MMMM1212",
+    "data": {
+      "key": "MMMM1212",
+      "itemType": "attachment",
+      "title": "skipped attachment",
+      "dateAdded": "2018-01-01T00:00:00Z"
+    }
+  },
+  {
+    "key": "NNNN1313",
+    "data": {
+      "key": "NNNN1313",
+      "itemType": "note",
+      "note": "skipped note",
+      "dateAdded": "2018-01-01T00:00:00Z"
+    }
+  }
+]

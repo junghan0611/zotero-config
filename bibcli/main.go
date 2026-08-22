@@ -58,25 +58,33 @@ func parseFlags(args []string) (positional []string, flags map[string]string) {
 	return
 }
 
+// defaultBibDir is the live bibliography surface: the renderer writes there
+// directly and Syncthing carries it between devices, so no repo checkout (and
+// no git pull) is needed to read the SSOT.
+func defaultBibDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return filepath.Join("sync", "org", "resources", "bib")
+	}
+	return filepath.Join(home, "sync", "org", "resources", "bib")
+}
+
 // resolveDir determines the bib directory to use.
-// Priority: --dir flag > BIBCLI_DIR env > ../output relative to exe > ./output
+// Priority: --dir flag > $ZOTERO_BIB_DIR > ~/sync/org/resources/bib
+//
+// BIBCLI_DIR is deliberately NOT consulted. A stale value of it (left over from
+// an old shell profile pointing at a retired export directory) silently fed
+// thousands of obsolete entries to callers that passed no --dir. The bib
+// directory now has exactly one env override, the same one the renderer uses,
+// so a reader and a writer can never disagree about where the SSOT lives.
 func resolveDir(flags map[string]string) string {
 	if d, ok := flags["dir"]; ok {
 		return d
 	}
-	if d := os.Getenv("BIBCLI_DIR"); d != "" {
+	if d := os.Getenv("ZOTERO_BIB_DIR"); d != "" {
 		return d
 	}
-	// Relative to executable
-	exe, err := os.Executable()
-	if err == nil {
-		candidate := filepath.Join(filepath.Dir(exe), "..", "output")
-		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return candidate
-		}
-	}
-	// Fallback
-	return "./output"
+	return defaultBibDir()
 }
 
 // loadEntries loads all entries from the resolved directory.
@@ -266,11 +274,12 @@ Commands:
   stats      통계
 
 Flags:
-  --dir DIR    Bib directory (default: $BIBCLI_DIR or ../output relative to exe)
+  --dir DIR    Bib directory (default: $ZOTERO_BIB_DIR or ~/sync/org/resources/bib)
   --type TYPE  Filter by entry type or bib file stem (e.g. Book, online)
   --max N      Maximum results (search default: 20, list default: 50)
 
 Environment:
-  BIBCLI_DIR              Default bib directory (overridden by --dir flag)
+  ZOTERO_BIB_DIR          Bib directory (overridden by --dir flag)
+                          BIBCLI_DIR is retired and ignored.
   DATA4LIBRARY_API_KEY    data4library API key (lookup command)`)
 }

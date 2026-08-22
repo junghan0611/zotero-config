@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Mock curl for tests/sync-cursor.sh — serves a fixture Zotero library.
+#
+# Env:
+#   MOCK_DIR          directory holding items.json (the fake cloud)
+#   MOCK_VERSION      Last-Modified-Version to report
+#   MOCK_EMPTY=1      report an empty /items/top result (no changes)
+#   MOCK_GARBAGE=1    return a non-JSON body (error page)
+#   MOCK_DELAY_PAGE=N sleep MOCK_DELAY_SECS before answering page starting at N
+#   MOCK_DELAY_SECS   default 5
+set -uo pipefail
+
+hdr=""
+url=""
+prev=""
+for a in "$@"; do
+    [[ "$prev" == "-D" ]] && hdr="$a"
+    case "$a" in
+        http*) url="$a" ;;
+    esac
+    prev="$a"
+done
+
+# /deleted endpoint
+if [[ "$url" == *"/deleted?"* ]]; then
+    # curl -sf 는 HTTP 오류에서 비정상 종료한다 → 그 상황을 흉내낸다
+    if [[ -n "${MOCK_DELETED_FAIL:-}" ]]; then
+        exit 22
+    fi
+    if [[ -n "${MOCK_DELETED_GARBAGE:-}" ]]; then
+        printf '<html>proxy error</html>'
+        exit 0
+    fi
+    if [[ -n "${MOCK_DELETED_KEYS:-}" ]]; then
+        jq -nc --arg k "$MOCK_DELETED_KEYS" '{items: ($k | split(","))}'
+        exit 0
+    fi
+    printf '{"items":[]}'
+    exit 0
+fi
+
+limit=$(sed -n 's/.*[?&]limit=\([0-9]*\).*/\1/p' <<<"$url"); limit="${limit:-100}"
+start=$(sed -n 's/.*[?&]start=\([0-9]*\).*/\1/p' <<<"$url"); start="${start:-0}"
+
+if [[ -n "${MOCK_DELAY_PAGE:-}" && "$start" == "$MOCK_DELAY_PAGE" ]]; then
+    sleep "${MOCK_DELAY_SECS:-5}"
+fi
+
+if [[ -n "${MOCK_GARBAGE:-}" ]]; then
+    [[ -n "$hdr" ]] && printf 'HTTP/1.1 500 Server Error\r\nLast-Modified-Version: %s\r\nTotal-Results: 0\r\n\r\n' "${MOCK_VERSION:-0}" > "$hdr"
+    printf '<html>error</html>'
+    exit 0
+fi
+
+if [[ -n "${MOCK_EMPTY:-}" ]]; then
+    [[ -n "$hdr" ]] && printf 'HTTP/1.1 200 OK\r\nLast-Modified-Version: %s\r\nTotal-Results: 0\r\n\r\n' "${MOCK_VERSION:-0}" > "$hdr"
+    printf '[]'
+    exit 0
+fi
+
+total=$(jq 'length' "$MOCK_DIR/items.json")
+[[ -n "$hdr" ]] && printf 'HTTP/1.1 200 OK\r\nLast-Modified-Version: %s\r\nTotal-Results: %s\r\n\r\n' "${MOCK_VERSION:-0}" "$total" > "$hdr"
+jq -c --argjson s "$start" --argjson l "$limit" '.[$s:($s+$l)]' "$MOCK_DIR/items.json"

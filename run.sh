@@ -6,12 +6,17 @@
 #   ./run.sh bib full|sync|status       — BibTeX 동기화
 #   ./run.sh save [--sync] [--json] <url> [collection]
 #                                     — URL 저장 (선택: bib sync + citation key 복구)
+#
+# 출력면: $ZOTERO_BIB_DIR (default ~/sync/org/resources/bib) — Syncthing 공유 실파일.
+# 어느 기기에서 실행해도 대칭이다. Git 명령은 등장하지 않는다.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OUTPUT_DIR="$SCRIPT_DIR/output"
 SYNC_DIR="$SCRIPT_DIR/.sync"
-RESOURCES_DIR="$HOME/org/resources"
+
+# 실사용 서지 출력면 = Syncthing이 기기 간에 나르는 유일한 공유 산출물.
+# 렌더가 여기에 직접 내려앉으므로 URL 등록/동기화에 Git이 개입하지 않는다.
+BIB_DIR="${ZOTERO_BIB_DIR:-$HOME/sync/org/resources/bib}"
 
 # Load .envrc and ~/.env.local
 if [[ -f "$SCRIPT_DIR/.envrc" ]]; then
@@ -21,7 +26,9 @@ if [[ -f "$HOME/.env.local" ]]; then
     set -a; source "$HOME/.env.local"; set +a
 fi
 
-# output/*.bib 공개 커밋용 후처리
+# *.bib 비식별화 후처리.
+# `bib sync`/`bib full`은 이미 staging 안에서 sanitize 후 비교·교체하므로
+# 이 커맨드는 명시적 재처리(예: starred 산출물)용 손잡이다.
 sanitize_public_bibs() {
     local sanitizer="$SCRIPT_DIR/scripts/sanitize-public-bib.sh"
     if [[ ! -x "$sanitizer" ]]; then
@@ -31,22 +38,8 @@ sanitize_public_bibs() {
     if [[ $# -gt 0 ]]; then
         "$sanitizer" "$@"
     else
-        "$sanitizer" "$OUTPUT_DIR"/*.bib
+        "$sanitizer" "$BIB_DIR"/*.bib
     fi
-}
-
-# output/*.bib → ~/org/resources/ 복사 (Syncthing 호환, symlink 사용 안 함)
-copy_to_resources() {
-    if [[ ! -d "$RESOURCES_DIR" ]]; then
-        echo "[WARN] $RESOURCES_DIR 없음, 복사 건너뜀" >&2
-        return
-    fi
-    local count=0
-    for bib in "$OUTPUT_DIR"/*.bib; do
-        cp "$bib" "$RESOURCES_DIR/$(basename "$bib")"
-        count=$((count + 1))
-    done
-    echo "[OK] $count bib files → $RESOURCES_DIR"
 }
 
 case "${1:-}" in
@@ -56,25 +49,18 @@ case "${1:-}" in
         echo ""
         echo "=== GitHub starred ==="
         "$SCRIPT_DIR/scripts/gh-starred-to-bib.sh"
-        echo ""
-        echo "=== Sanitize public bibs ==="
-        sanitize_public_bibs
-        echo ""
-        echo "=== Copy to resources ==="
-        copy_to_resources
+        sanitize_public_bibs "$BIB_DIR/github-starred.bib"
         ;;
     server)
         shift
         exec "$SCRIPT_DIR/scripts/run.sh" "$@"
         ;;
     bib)
+        # 렌더는 $BIB_DIR(기본 ~/sync/org/resources/bib)에 직접 내려앉는다.
+        # sanitize / 바이트 비교 / staged rename 은 전부 zotero-to-bib.sh 안에서
+        # 끝난다. 복사 단계 없음 = Git 없음.
         shift
         "$SCRIPT_DIR/scripts/zotero-to-bib.sh" "$@"
-        # full/sync 후 후처리 + resources 복사 (status는 제외)
-        if [[ "${1:-}" == "full" || "${1:-}" == "sync" ]]; then
-            sanitize_public_bibs
-            copy_to_resources
-        fi
         ;;
     save)
         shift
@@ -89,8 +75,7 @@ case "${1:-}" in
     starred)
         shift
         "$SCRIPT_DIR/scripts/gh-starred-to-bib.sh" "$@"
-        sanitize_public_bibs
-        copy_to_resources
+        sanitize_public_bibs "${1:-$BIB_DIR/github-starred.bib}"
         ;;
     sanitize)
         shift
@@ -124,7 +109,7 @@ case "${1:-}" in
         BIBCLI_VERSION="$(git -C "$SCRIPT_DIR" describe --tags --always --dirty 2>/dev/null || echo dev)"
         (cd "$SCRIPT_DIR/bibcli" && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$BIBCLI_VERSION" -o "$INSTALL_DIR/bibcli" .)
         echo "Installed: $INSTALL_DIR/bibcli"
-        echo "Set BIBCLI_DIR=$SCRIPT_DIR/output in your shell profile"
+        echo "Bib dir: $BIB_DIR (bibcli default; override with ZOTERO_BIB_DIR or --dir)"
         echo "Skill docs: https://github.com/junghan0611/pi-skills/tree/main/bibcli"
         ;;
     -h|--help|"")
@@ -133,10 +118,10 @@ Usage: $(basename "$0") <command> [args]
 
 Commands:
   update                     Zotero 증분 + GitHub starred 한번에 갱신
-  bib full|sync|status       BibTeX 동기화 (Zotero Cloud → .bib)
+  bib full|sync|status       BibTeX 동기화 (Zotero Cloud → \$BIB_DIR/*.bib)
   enrich [--dry-run] [--max N]  book- 접두사 책 메타정보 보강 (data4library)
-  starred                    GitHub starred → output/github-starred.bib
-  sanitize [files...]        output/*.bib 공개 커밋용 후처리
+  starred                    GitHub starred → \$BIB_DIR/github-starred.bib
+  sanitize [files...]        *.bib 비식별화 후처리 (default: \$BIB_DIR/*.bib)
   save [--sync] [--json] <url> [collection]
                              URL을 Zotero에 저장
                              --sync: bib sync + citation key 복구
@@ -148,12 +133,15 @@ Commands:
   server start|stop|status   Translation Server 관리
   build [dir]                bibcli 빌드 + 설치 (default: ~/.local/bin)
 
+Bib dir (실사용 출력면): $BIB_DIR
+  ZOTERO_BIB_DIR 로 override 가능. 어느 기기에서 실행해도 대칭이며 Git은 개입하지 않는다.
+
 Examples:
   $(basename "$0") update
   $(basename "$0") bib full
   $(basename "$0") enrich --dry-run        # 미리보기
   $(basename "$0") enrich --max 3          # 3건만 실행
-  $(basename "$0") sanitize                # output/*.bib 후처리
+  $(basename "$0") sanitize                # \$BIB_DIR/*.bib 후처리
   $(basename "$0") save "https://arxiv.org/abs/2103.00020"
   $(basename "$0") save --sync --json "https://en.wikipedia.org/wiki/Vannevar_Bush"
   $(basename "$0") pin --sync --json '{"zoteroKey":"ABCD","citationKey":"001.3-김74ㅁ","title":"…"}'

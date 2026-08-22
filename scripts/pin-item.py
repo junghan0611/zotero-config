@@ -293,8 +293,10 @@ def main() -> None:
     parser.add_argument("--json", required=True, help="JSON object or '-' for stdin")
     parser.add_argument(
         "--bib-dir",
-        default=os.path.expanduser("~/org/resources"),
-        help="Local bib SSOT for uniqueness check",
+        default=os.environ.get("ZOTERO_BIB_DIR")
+        or os.path.expanduser("~/sync/org/resources/bib"),
+        # %(default)s → --help 이 실제로 해석된 경로를 보여준다 (override 포함)
+        help="Local bib SSOT for uniqueness check (default: %(default)s)",
     )
     parser.add_argument(
         "--allow-overwrite-key",

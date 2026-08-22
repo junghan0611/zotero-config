@@ -59,12 +59,12 @@ workspace/translation-server
 # Sync state (API version, cached items, generated keys)
 .sync/
 
-# Generated BibTeX output (개인 서지 데이터)
-# output/
+# repo output/ 은 이 리포가 관리하는 대상이 아니다.
+# 실사용 출력면은 $ZOTERO_BIB_DIR (기본 ~/sync/org/resources/bib, Syncthing 공유).
+output/
 
 # Python cache
 __pycache__/
-output/.auctex-auto/
 
 # bibcli build artifacts (source in bibcli/*.go; runtime binary lives in agent-config skill)
 bibcli/bibcli

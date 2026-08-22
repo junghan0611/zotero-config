@@ -20,9 +20,23 @@ Repo: `~/repos/gh/zotero-config`.
 
 ```text
 Zotero Cloud  = 캡처 금고 (phone / browser Connector / save URL)
-local *.bib   = 메타 서지 SSOT  (output/ → ~/org/resources/, citar + bibcli)
+~/sync/org/resources/bib/*.bib = 메타 서지 SSOT — 렌더가 **여기에 직접** 내려앉는다
 org notes     = 읽기·해석·인용 소비 층  (#+reference: / #+print_bibliography:)
 ```
+
+### 기기 대칭 — 중앙 쓰기 주체가 없다
+
+어느 기기의 org 담당자든 그 자리에서 `save` / `pin` / `bib sync` 를 돌린다.
+Zotero Cloud가 캡처 권위, 각 기기의 `.sync/`는 그 기기의 사적 캐시,
+Syncthing이 나르는 것은 **live bib 디렉터리 하나뿐**이다.
+
+- 출력면: `$ZOTERO_BIB_DIR` (기본 `~/sync/org/resources/bib`). 렌더러와 bibcli가
+  **같은 한 개의 환경변수**를 본다. `BIBCLI_DIR`은 폐기·무시 (셸 프로필에 남은
+  낡은 값이 `--dir` 없는 bibcli에 폐기된 목록을 먹이던 사고가 있었다).
+- 일상 서지 등록에 git 명령은 등장하지 않는다.
+- repo `output/`은 이 리포가 관리하는 대상이 아니다.
+- `.sync/`는 Git에도 Syncthing에도 올리지 않는다 — 공유해야 할 산출물은 이미
+  렌더된 `.bib`다.
 
 - **bibcli가 보여주는 것**만이 “서지로 인정된 것”이다. Zotero에만 있고 sync 안 된
   항목은 아직 SSOT에 없다.
@@ -86,7 +100,7 @@ cd ~/repos/gh/zotero-config
   "url": "URL"
 }'
 # → { citationKey, synced:true }  dateAdded 불변 검증 포함
-bibcli show "001.3-김74ㅁ" --dir ~/org/resources
+bibcli show "001.3-김74ㅁ"
 ```
 
 ### 스타일 규칙 (yes24 등)
@@ -129,6 +143,72 @@ bibcli show "001.3-김74ㅁ" --dir ~/org/resources
 - 에이전트 금지: dateAdded/dateModified를 잃을 수 있는 일괄 수정,
   “편하자”는 책 메타 자동 재작성, 검증 없는 Cloud mutation.
 
+### 결정론 계약 (같은 라이브러리 → 같은 바이트)
+
+렌더 결과는 Zotero 항목의 **집합**에만 의존한다. 기기별 `.sync/items.json`의
+배열 순서, `last-version`, 돌린 시각 — 어느 것도 바이트에 새지 않는다.
+어느 기기든, 몇 번을 다시 돌리든 **완전히 byte-identical**.
+
+- 모든 항목을 `(citationKey, Zotero item key)`로 정렬한 **뒤에** 중복 접미사
+  (`-1`/`-2`)를 매긴다. 그래서 접미사까지 결정론적이다.
+- 비식별화(`sanitize_bib.py`)도 **정렬 전에** 돈다. 규칙이 fallback 키 안의
+  식별자를 바꾸기 때문에, 정렬 뒤에 sanitize 하면 최종 바이트에 역전이 남는다
+  (실측: `web-tbdhnygokweol` 이 `web-gordonnovakjr` 보다 위에 있었다).
+- **생성 시각 헤더가 아예 없다** (`% Updated:` 제거). 비교는 순수 바이트 동일성이고,
+  같으면 실파일을 건드리지 않는다 → Syncthing에 no-op 전파가 없다.
+- `github-starred.bib`도 **같은 규칙원**에서 온다: `sanitize_bib.py --jq-filter` 가
+  주는 필터를 jq 가 `sort_by` **전에** 키에 적용하고, 엔트리 본문에도 적용한다.
+  셸에 규칙을 하드코딩하지 않아 두 렌더러가 갈라질 수 없다. 생성 시각 없음.
+- Zotero의 `dateAdded`/`dateModified`는 BibTeX `dateadded`/`datemodified`로
+  남는다. 이건 렌더 메타데이터가 아니라 **내용**이다.
+- 설치는 `$BIB_DIR` 안 staging → 바이트 비교 → 같은 파일시스템 rename
+  (`scripts/lib-install.sh` 를 두 렌더러가 공유). citar/bibcli의 glob이 반쯤 쓰인
+  파일을 보지 않고, staging 잔여물도 남지 않는다. `github-starred.bib` 도 같은 경로라
+  응답이 그대로면 파일과 mtime을 건드리지 않는다.
+
+검증 (네트워크·Cloud 없음, 실사용 bib 디렉터리 안 건드림 — 전부 mktemp 안에서):
+
+```bash
+./tests/render-determinism.sh             # fixture 계약 테스트
+./tests/render-determinism-live-cache.sh  # 이 기기 실제 캐시로 재확인
+./tests/bib-dir-and-install.sh            # 출력면 경로 + staged install
+./tests/sync-cursor.sh                    # 커서 안전성 (mock curl)
+```
+
+### 커서 계약 — `.sync/last-version`은 캐시보다 앞서지 않는다
+
+`last-version`은 **커서**다. 다음 증분 sync가 그 이후 항목만 요청하므로,
+커서가 캐시(`items.json`)보다 앞서면 그 사이 페이지를 영원히 건너뛴다.
+
+실측 사고: `bib full`이 페이지 44/63에서 kill 됐는데 옛 루프가 **페이지마다**
+커서를 먼저 써서, 캐시는 6223(옛것) 그대로인데 커서만 35790으로 튀었다.
+
+```text
+전 페이지 fetch → 캐시 커밋(temp+rename) → 삭제 반영 → 그 다음에야 커서 커밋
+```
+
+삭제 반영도 이 순서의 일부다. `/deleted?since=` 는 **옛 커서**를 실은 요청에만
+삭제를 보여주므로, 그 요청이 실패하거나 깨지면 `prune_deleted` 가 비정상 종료하고
+`do_sync` 는 커서를 커밋하지 않는다. 경고만 하고 넘기면 그 삭제들을 영영 못 본다.
+
+중단·타임아웃·깨진 응답이 마지막 단계 전에 오면 옛 (캐시, 커서) 쌍이 그대로 남는다.
+
+### 단일 쓰기 락 — 동시에 두 sync 를 돌리지 않는다
+
+`pin --sync`, `save --sync`, 손으로 돌린 `bib full`, OpenClaw 봇이 동시에 `.sync` 를
+건드릴 수 있다. **실측 사고**: 두 번째 `bib full` 이 첫 번째의 **활성** fetch staging 을
+지워서, 첫 번째가 26페이지부터 조용히 잃고 `Fetched 0 items total` 로 끝났다.
+
+- `full`/`sync`/`writeback` 은 배타적 non-blocking `flock` 을 먼저 잡고,
+  못 잡으면 보유자 pid 와 함께 정직하게 거부한다. `status` 는 읽기 전용이라 무관.
+- 락은 fd 에 걸려 프로세스가 죽으면 커널이 해제한다. 보유자 pid 가 이미 없으면
+  남을 강제로 깨지 않고 최대 10초만 기다린다.
+- staging 잔여물 청소는 **60분 이상 된 것만**. 사고를 만든 블랭킷 `rm -rf` 는 제거했다.
+
+검증: `./tests/sync-lock.sh`
+남은 비대칭은 의도적이고 무해하다 — 캐시가 커서보다 새로우면 다음 sync가 superset을
+다시 받고 upsert 병합이 흡수한다.
+
 ### sync 본선과 키
 
 ```text
@@ -163,9 +243,9 @@ cd ~/repos/gh/zotero-config && ./run.sh bib sync
 그 다음:
 
 ```bash
-bibcli search "구별되는 단어들" --dir ~/org/resources --max 10
+bibcli search "구별되는 단어들" --max 10
 # 또는 URL 조각 exact
-bibcli search "youtube.com/watch?v=…" --dir ~/org/resources --max 5
+bibcli search "youtube.com/watch?v=…" --max 5
 ```
 
 **금지:** sync 없이 “bib에 없는데요”로 끝맺기.  
@@ -202,6 +282,12 @@ bibcli search "youtube.com/watch?v=…" --dir ~/org/resources --max 5
 - PDF fulltext·annotation 파이프를 이 리포에 얹기 (읽기 층은 org)
 - live Zotero API를 bibcli 매검색마다 호출 (SSOT는 로컬 bib)
 - BBT/GUI 플러그인 재도입
+- `.sync/`를 Git이나 Syncthing으로 공유 (기기별 사적 캐시다)
+- 일상 서지 등록 경로에 git pull/push/커밋을 끌어들이기
+- 렌더 산출물에 생성 시각을 다시 넣기 (결정론이 깨진다)
+- 캐시 커밋 **전에** `last-version`을 쓰기 (페이지 건너뜀 사고)
+- `.sync` 를 락 없이 동시에 두 프로세스가 쓰기 (서로의 staging 을 지운다)
+- `BIBCLI_DIR`을 다시 살리기 (출력면 환경변수는 `ZOTERO_BIB_DIR` 하나다)
 - 책 키 대량 자동 생성·자동 writeback
 - **sync 본선에 data4library/KDC 재도입**
 - dateAdded/dateModified를 위험에 넣는 일괄 enrich
@@ -212,7 +298,7 @@ bibcli search "youtube.com/watch?v=…" --dir ~/org/resources --max 5
 | 스킬 | 자리 | 역할 |
 |------|------|------|
 | **zotero-config** (이 문서) | `zotero-config/.claude/skills/` | 교리·책 의식·성스러운 필드·sync 반사·mutation·run.sh |
-| **bibcli** | `agent-config/skills/bibcli/` | 전역 검색 CLI, JSON, save 원샷, `lookup` 보조, `--dir ~/org/resources` |
+| **bibcli** | `agent-config/skills/bibcli/` | 전역 검색 CLI, JSON, save 원샷, `lookup` 보조, `--dir $ZOTERO_BIB_DIR` |
 
 어느 리포/세션에서든 서지를 찾으면 bibcli 스킬.  
 이 리포 안을 만지거나 “Zotero에 담았는데” / 책 KDC 맥락이면 **이 스킬을 먼저**.
@@ -230,11 +316,17 @@ cd ~/repos/gh/zotero-config
 ./run.sh save --sync --json URL  # 웹/영상 등 폴백 키로 충분한 경우
 ./run.sh build
 bibcli lookup ISBN|제목          # 선택 보조
+./tests/render-determinism.sh    # 결정론 계약 검증
+./tests/bib-dir-and-install.sh   # 출력면 경로 + staged install
+./tests/sync-cursor.sh           # 커서 안전성 (mock curl)
+./tests/sync-lock.sh             # 단일 쓰기 락 (동시 실행 거부)
+./tests/starred-determinism.sh   # starred 정렬·비식별화 (합성 입력)
 ```
 
 환경: `.envrc` — `ZOTERO_API_KEY`, `ZOTERO_USER_ID`,  
 (선택) `DATA4LIBRARY_API_KEY` — **lookup/enrich 전용**, sync 불필요.  
-상태: `.sync/` (gitignored) — `items.json`, `last-version`, `new-keys.json`.
+출력면: `$ZOTERO_BIB_DIR` (기본 `~/sync/org/resources/bib`, Syncthing 공유).
+상태: `.sync/` (gitignored, **기기별**) — `items.json`, `last-version`, `new-keys.json`.
 
 ## 8. 문서 라우팅
 

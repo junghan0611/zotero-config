@@ -244,9 +244,9 @@ func TestLoadDir(t *testing.T) {
 }
 
 func BenchmarkLoadDir(b *testing.B) {
-	dir := filepath.Join("..", "output")
+	dir := realBibDir()
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		b.Skip("output/ not found")
+		b.Skip("bib dir not found")
 	}
 	for i := 0; i < b.N; i++ {
 		entries, err := LoadDir(dir)
@@ -260,10 +260,15 @@ func BenchmarkLoadDir(b *testing.B) {
 }
 
 func TestLoadRealBibDir(t *testing.T) {
-	// Skip if real output dir doesn't exist (CI environment)
-	outputDir := filepath.Join("..", "output")
+	// Optional: runs only where the live bib dir is already populated.
+	// Absent (CI) or empty (before the first render on a device) → skip.
+	outputDir := realBibDir()
 	if _, err := os.Stat(outputDir); os.IsNotExist(err) {
-		t.Skip("output/ directory not found, skipping real bib test")
+		t.Skip("bib dir not found, skipping real bib test")
+	}
+	bibs, _ := filepath.Glob(filepath.Join(outputDir, "*.bib"))
+	if len(bibs) == 0 {
+		t.Skipf("no .bib files in %s yet, skipping real bib test", outputDir)
 	}
 
 	entries, err := LoadDir(outputDir)
@@ -271,7 +276,7 @@ func TestLoadRealBibDir(t *testing.T) {
 		t.Fatalf("LoadDir failed on real data: %v", err)
 	}
 
-	// We know from project memory there are ~8000+ entries across 8 files
+	// A populated library is thousands of entries across the type-split files.
 	if len(entries) < 5000 {
 		t.Errorf("expected at least 5000 entries from real bibs, got %d", len(entries))
 	}
@@ -289,4 +294,11 @@ func TestLoadRealBibDir(t *testing.T) {
 			t.Errorf("entry %d (%s) has empty file", i, e.Key)
 		}
 	}
+}
+
+// realBibDir points at the live bibliography surface for the optional
+// real-data tests. It reuses the production resolution order so the tests
+// cannot drift from it. These tests are read-only and skip when absent.
+func realBibDir() string {
+	return resolveDir(map[string]string{})
 }

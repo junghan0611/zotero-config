@@ -5,16 +5,21 @@ gen-bibtex.py - Zotero JSON -> BibTeX 변환 엔진
 Converts Zotero API JSON items to citar-compatible BibTeX files.
 Splits output by BibTeX entry type: Book.bib, Online.bib, Software.bib, etc.
 
-Network-free renderer. Citation keys already set on Zotero items are kept
-as-is. Missing keys get a local BBT-style fallback. KDC / data4library is
+Network-free renderer. Output is sanitized (see sanitize_bib.py) and sorted by
+(citationKey, Zotero item key) — sanitization runs BEFORE the sort so the
+ordering invariant holds on the final bytes. Citation keys already set on Zotero
+items are kept as-is. Missing keys get a local BBT-style fallback. KDC / data4library is
 NOT called here — book classification is a human ritual (see operator skill);
 assistive lookup lives in `bibcli lookup` and optional `./run.sh enrich`.
+
+Output is byte-deterministic: same library in, same bytes out, on any device and
+on any rerun. No generation timestamp is emitted.
 
 Usage:
     python3 gen-bibtex.py \
         --items .sync/items.json \
-        --book-bib ~/org/resources/Book.bib \
-        --output-dir ~/org/resources \
+        --book-bib "$HOME/sync/org/resources/bib/Book.bib" \
+        --output-dir "$HOME/sync/org/resources/bib" \
         --sync-dir .sync
 """
 
@@ -22,7 +27,10 @@ import argparse
 import json
 import os
 import re
-from datetime import datetime, timezone
+
+# 비식별화 규칙 SSOT. 렌더 뒤가 아니라 **정렬 전에** 적용해야 최종 바이트의
+# citationKey 정렬 불변식이 성립한다 (sanitize 가 키 자체를 바꾸기 때문).
+from sanitize_bib import sanitize_text
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -347,12 +355,25 @@ def process_items(items):
     """Process all items and return (book_entries, typed_entries, new_keys).
 
     typed_entries is a dict mapping file stem (Online, Software, etc.) to entry lists.
+
+    Determinism contract
+    --------------------
+    The rendered bytes must depend only on the *set* of Zotero items, never on
+    the order they happen to sit in the device-local `.sync/items.json` cache,
+    nor on `last-version`, nor on when the sync ran. Any two devices holding the
+    same library therefore produce **byte-identical** `.bib` files — no
+    generation timestamp is emitted at all.
+
+    So every item is sorted by (citationKey, Zotero item key) *before* the
+    duplicate-suffix counter runs — otherwise the `-1` / `-2` suffixes would
+    themselves inherit cache order.
     """
     book_entries = []
     typed_entries = {}  # stem -> [entries]
     new_keys = {}
     seen_keys = set()
 
+    prepared = []
     for item in items:
         data = item.get("data", {})
         item_type = data.get("itemType", "")
@@ -361,28 +382,37 @@ def process_items(items):
         if item_type in ("attachment", "note"):
             continue
 
-        # Generate citation key (local only — no network)
-        citation_key, is_new = generate_citation_key(data)
+        # Generate citation key (local only — no network), then sanitize it.
+        # Sanitizing BEFORE the sort is what makes the ordering invariant hold on
+        # the final published bytes: the rules rewrite identifiers that can sit
+        # inside a fallback key, so sorting raw keys and sanitizing afterwards
+        # leaves inversions behind.
+        base_key, is_new = generate_citation_key(data)
+        base_key = sanitize_text(base_key)
+        zotero_key = item.get("key", data.get("key", "")) or ""
+        prepared.append((base_key, zotero_key, is_new, item_type, data))
 
-        # Deduplicate
-        original_key = citation_key
+    # Stable order: citationKey first, Zotero item key as tie-break.
+    prepared.sort(key=lambda p: (p[0], p[1]))
+
+    for base_key, zotero_key, is_new, item_type, data in prepared:
+        # Deduplicate (deterministic: assigned in the sorted order above)
+        citation_key = base_key
         counter = 1
         while citation_key in seen_keys:
-            citation_key = f"{original_key}-{counter}"
+            citation_key = f"{base_key}-{counter}"
             counter += 1
         seen_keys.add(citation_key)
 
         # Track new keys
-        if is_new:
-            zotero_key = item.get("key", data.get("key", ""))
-            if zotero_key:
-                new_keys[zotero_key] = citation_key
+        if is_new and zotero_key:
+            new_keys[zotero_key] = citation_key
 
         # Map entry type
         entry_type = ENTRY_TYPE_MAP.get(item_type, "misc")
 
-        # Generate BibTeX
-        entry = item_to_bibtex(data, citation_key, entry_type)
+        # Generate BibTeX (body sanitized with the same rules as the key)
+        entry = sanitize_text(item_to_bibtex(data, citation_key, entry_type))
 
         # Split: books -> Book.bib, others -> by entry type
         if item_type == "book":
@@ -395,14 +425,18 @@ def process_items(items):
 
 
 def write_bib_file(path, entries, label):
-    """Write a BibTeX file only when its bibliography content changed."""
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    """Write a BibTeX file only when its bytes changed.
+
+    The header carries **no generation timestamp**: a render of the same library
+    must be byte-identical on every device and on every rerun. Semantic time
+    lives in the per-entry `dateadded` / `datemodified` fields, which come from
+    Zotero and are content, not metadata about when this ran.
+    """
     header = (
         f"% -*- bibtex -*-\n"
         f"% {label}\n"
         f"%\n"
         f"% Entries:  {len(entries)}\n"
-        f"% Updated:  {now}\n"
         f"% Source:   Zotero Cloud API (headless)\n"
         f"%\n"
     )
@@ -412,15 +446,9 @@ def write_bib_file(path, entries, label):
 
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
-            existing = f.read()
-        # The generation timestamp is metadata, not a bibliography change.
-        # Preserve the existing file (and mtime) when that is the only delta.
-        timestamp_line = r"(?m)^% Updated:  .*?$"
-        if re.sub(timestamp_line, "", existing, count=1) == re.sub(
-            timestamp_line, "", content, count=1
-        ):
-            print(f"  Unchanged: {path}")
-            return
+            if f.read() == content:
+                print(f"  Unchanged: {path}")
+                return
 
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)
@@ -465,7 +493,7 @@ def main():
         new_keys_path = os.path.join(args.sync_dir, "new-keys.json")
         os.makedirs(args.sync_dir, exist_ok=True)
         with open(new_keys_path, "w", encoding="utf-8") as f:
-            json.dump(new_keys, f, ensure_ascii=False, indent=2)
+            json.dump(new_keys, f, ensure_ascii=False, indent=2, sort_keys=True)
         print(f"  Saved {len(new_keys)} new key mappings to {new_keys_path}")
 
     print("Done.")
