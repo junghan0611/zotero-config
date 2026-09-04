@@ -21,8 +21,10 @@ agent-config.
 and its title, slug, filetags, and filename all moved while `#+identifier`
 did not. Titles move within a day; the id does not. So never re-derive "which
 note is this repo's steward doc" from a title/`§` search — read the id above.
-Its title today is `§zotero-config: ◊bibcli 캡처 금고와 메타 서지의 얇은 손`,
+Its title today is `§zotero-config #담당자 ◊bibcli 캡처 금고와 메타 서지의 얇은 손`,
 recorded here as a convenience only; if it disagrees with the file, the file wins.
+(That line has already gone stale once — it was renamed again hours after this
+block was written. The id did not move. That is the whole point.)
 
 **Read the org original, never the exported md.** `notes/content/` is one export
 cycle behind, so a freshly renamed or updated note reads as missing or stale
