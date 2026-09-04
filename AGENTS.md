@@ -10,10 +10,28 @@ No Zotero GUI, no Better BibTeX plugin, no MCP.
 books/KDC, or any mutation boundary. Global search CLI skill: `bibcli` in
 agent-config.
 
-**Public steward face (botlog 담당자 문서):**
-`denote:20260304T105300` — `§zotero-config: 캡처 금고와 메타 서지의 얇은 손`
-(`~/org/botlog/20260304T105300--….org`). After meaningful posture/boundary changes,
-update that room (히스토리 + 현재 보고) — do **not** mint a new botlog/llmlog.
+### Steward note — the id is the anchor, not the title
+
+```text
+담당자 문서 = denote:20260304T105300
+읽는 자리  = ~/org/botlog/20260304T105300--*.org   (org 원본)
+```
+
+**The id is the only stable handle.** Measured 2026-09-04: this note was renamed
+and its title, slug, filetags, and filename all moved while `#+identifier`
+did not. Titles move within a day; the id does not. So never re-derive "which
+note is this repo's steward doc" from a title/`§` search — read the id above.
+Its title today is `§zotero-config: ◊bibcli 캡처 금고와 메타 서지의 얇은 손`,
+recorded here as a convenience only; if it disagrees with the file, the file wins.
+
+**Read the org original, never the exported md.** `notes/content/` is one export
+cycle behind, so a freshly renamed or updated note reads as missing or stale
+there. `denotecli read 20260304T105300 --outline` first, then the section you need.
+
+After meaningful posture/boundary changes, update that room (히스토리 + 현재 보고)
+— do **not** mint a new botlog/llmlog. `:hugo_lastmod:` is the *steward's stamp*:
+set it (`agent-denote-set-front-matter`) only when the content actually changed;
+a 히스토리 line alone is a log, not a change, and does not move the baseline.
 Session handoff stays in `NEXT.md`.
 
 ### Doctrine — capture vault vs meta-bib SSOT
